@@ -20,6 +20,42 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// Security headers middleware
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set HTTP headers for enhanced security
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		next.ServeHTTP(w, r) // Call the next handler
+	})
+}
+
+type contextKey string
+
+const userIDKey contextKey = "userId"
+
+var (
+	userCollection       *mongo.Collection
+	profilesCollection   *mongo.Collection
+	userDataCollection   *mongo.Collection
+	ticketsCollection    *mongo.Collection
+	reviewsCollection    *mongo.Collection
+	settingsCollection   *mongo.Collection
+	followingsCollection *mongo.Collection
+	placesCollection     *mongo.Collection
+	businessesCollection *mongo.Collection
+	bookingsCollection   *mongo.Collection
+	menusCollection      *mongo.Collection
+	promotionsCollection *mongo.Collection
+	ownersCollection     *mongo.Collection
+	postsCollection      *mongo.Collection
+	seatsCollection      *mongo.Collection
+	merchCollection      *mongo.Collection
+	activitiesCollection *mongo.Collection
+	client               *mongo.Client
+)
+
 func main() {
 
 	err := godotenv.Load()
@@ -68,6 +104,10 @@ func main() {
 	menusCollection = client.Database("eventdb").Collection("menus")
 	promotionsCollection = client.Database("eventdb").Collection("promotions")
 	ownersCollection = client.Database("eventdb").Collection("owners")
+	postsCollection = client.Database("eventdb").Collection("posts")
+	seatsCollection = client.Database("eventdb").Collection("seats")
+	merchCollection = client.Database("eventdb").Collection("merch")
+	activitiesCollection = client.Database("eventdb").Collection("merch")
 
 	eventRepo := &repository.EventRepository{
 		Collection: client.Database("eventdb").Collection("events"),
@@ -231,35 +271,3 @@ func main() {
 	}
 	log.Println("Server stopped")
 }
-
-// Security headers middleware
-func securityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set HTTP headers for enhanced security
-		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		next.ServeHTTP(w, r) // Call the next handler
-	})
-}
-
-type contextKey string
-
-const userIDKey contextKey = "userId"
-
-var (
-	userCollection       *mongo.Collection
-	profilesCollection   *mongo.Collection
-	userDataCollection   *mongo.Collection
-	ticketsCollection    *mongo.Collection
-	reviewsCollection    *mongo.Collection
-	settingsCollection   *mongo.Collection
-	followingsCollection *mongo.Collection
-	placesCollection     *mongo.Collection
-	businessesCollection *mongo.Collection
-	bookingsCollection   *mongo.Collection
-	menusCollection      *mongo.Collection
-	promotionsCollection *mongo.Collection
-	ownersCollection     *mongo.Collection
-	client               *mongo.Client
-)

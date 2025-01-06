@@ -102,8 +102,8 @@ func createMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Insert merchandise into MongoDB
-	collection := client.Database("eventdb").Collection("merch")
-	_, err = collection.InsertOne(context.TODO(), merch)
+	// collection := client.Database("eventdb").Collection("merch")
+	_, err = merchCollection.InsertOne(context.TODO(), merch)
 	if err != nil {
 		http.Error(w, "Failed to insert merchandise: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -133,9 +133,9 @@ func getMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	collection := client.Database("eventdb").Collection("merch")
+	// collection := client.Database("eventdb").Collection("merch")
 	var merch Merch
-	err = collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}).Decode(&merch)
+	err = merchCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}).Decode(&merch)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Merchandise not found: %v", err), http.StatusNotFound)
 		return
@@ -164,11 +164,11 @@ func getMerchs(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	collection := client.Database("eventdb").Collection("merch")
+	// collection := client.Database("eventdb").Collection("merch")
 	var merchList []Merch
 	filter := bson.M{"eventid": eventID}
 
-	cursor, err := collection.Find(context.Background(), filter)
+	cursor, err := merchCollection.Find(context.Background(), filter)
 	if err != nil {
 		http.Error(w, "Failed to fetch merchandise", http.StatusInternalServerError)
 		return
@@ -233,8 +233,8 @@ func editMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Update the merch in MongoDB
-	collection := client.Database("eventdb").Collection("merch")
-	updateResult, err := collection.UpdateOne(
+	// collection := client.Database("eventdb").Collection("merch")
+	updateResult, err := merchCollection.UpdateOne(
 		context.TODO(),
 		bson.M{"eventid": eventID, "merchid": merchID},
 		bson.M{"$set": updateFields},
@@ -272,8 +272,8 @@ func deleteMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	merchID := ps.ByName("merchid")
 
 	// Delete the merch from MongoDB
-	collection := client.Database("eventdb").Collection("merch")
-	deleteResult, err := collection.DeleteOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID})
+	// collection := client.Database("eventdb").Collection("merch")
+	deleteResult, err := merchCollection.DeleteOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to delete merchandise: %v", err), http.StatusInternalServerError)
 		return
@@ -314,9 +314,9 @@ func buyMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Find the merch in the database
-	collection := client.Database("eventdb").Collection("merch")
+	// collection := client.Database("eventdb").Collection("merch")
 	var merch Merch // Define the Merch struct based on your schema
-	err = collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}).Decode(&merch)
+	err = merchCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}).Decode(&merch)
 	if err != nil {
 		http.Error(w, "Merch not found or other error", http.StatusNotFound)
 		return
@@ -330,7 +330,7 @@ func buyMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Decrease the merch stock by the requested quantity
 	update := bson.M{"$inc": bson.M{"stock": -requestData.Quantity}}
-	_, err = collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}, update)
+	_, err = merchCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}, update)
 	if err != nil {
 		http.Error(w, "Failed to update merch stock", http.StatusInternalServerError)
 		return

@@ -19,7 +19,7 @@ import (
 
 // Function to handle fetching the feed
 func getPosts(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	collection := client.Database("twitterClone").Collection("posts")
+	// collection := client.Database("eventdb").Collection("posts")
 
 	// Create an empty slice to store posts
 	var posts []Post
@@ -35,7 +35,7 @@ func getPosts(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	defer cancel()
 
 	// Fetch posts with sorting options
-	cursor, err := collection.Find(ctx, filter, &options.FindOptions{
+	cursor, err := postsCollection.Find(ctx, filter, &options.FindOptions{
 		Sort: sortOrder, // Apply sorting by timestamp descending
 	})
 	if err != nil {
@@ -136,7 +136,7 @@ func createTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	newPost.Media = mediaPaths
 
 	// Save post in the database
-	postsCollection := client.Database("twitterClone").Collection("posts")
+	// postsCollection := client.Database("eventdb").Collection("posts")
 	insertResult, err := postsCollection.InsertOne(context.TODO(), newPost)
 	if err != nil {
 		http.Error(w, "Failed to insert post into DB: "+err.Error(), http.StatusInternalServerError)
@@ -244,7 +244,7 @@ func editPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Check ownership of the post
-	postsCollection := client.Database("twitterClone").Collection("posts")
+	// postsCollection := client.Database("eventdb").Collection("posts")
 	var existingPost Post
 	err = postsCollection.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&existingPost)
 	if err != nil {
@@ -325,7 +325,7 @@ func deletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Delete the post from MongoDB
-	postsCollection := client.Database("twitterClone").Collection("posts")
+	// postsCollection := client.Database("eventdb").Collection("posts")
 	result, err := postsCollection.DeleteOne(context.TODO(), bson.M{"_id": id})
 	if err != nil {
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)

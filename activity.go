@@ -52,7 +52,7 @@ func logActivity(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	activity.Username = claims.Username
 	activity.Timestamp = time.Now()
 
-	activitiesCollection := client.Database("eventdb").Collection("activities")
+	// activitiesCollection := client.Database("eventdb").Collection("activities")
 	_, err = activitiesCollection.InsertOne(context.TODO(), activity)
 	if err != nil {
 		sendErrorResponse(w, http.StatusInternalServerError, "Failed to log activity")
@@ -83,7 +83,7 @@ func getActivityFeed(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 		return
 	}
 
-	activitiesCollection := client.Database("eventdb").Collection("activities")
+	// activitiesCollection := client.Database("eventdb").Collection("activities")
 	cursor, err := activitiesCollection.Find(context.TODO(), bson.M{"username": claims.Username})
 	if err != nil {
 		sendErrorResponse(w, http.StatusInternalServerError, "Failed to fetch activities")

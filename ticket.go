@@ -59,8 +59,8 @@ func createTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	}
 
 	// Insert ticket into MongoDB
-	collection := client.Database("eventdb").Collection("ticks")
-	_, err = collection.InsertOne(context.TODO(), tick)
+	// collection := client.Database("eventdb").Collection("ticks")
+	_, err = ticketsCollection.InsertOne(context.TODO(), tick)
 	if err != nil {
 		http.Error(w, "Failed to create ticket: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -88,10 +88,10 @@ func getTickets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Retrieve tickets from MongoDB if not cached
-	collection := client.Database("eventdb").Collection("ticks")
+	// collection := client.Database("eventdb").Collection("ticks")
 	var tickList []Ticket
 	filter := bson.M{"eventid": eventID}
-	cursor, err := collection.Find(context.Background(), filter)
+	cursor, err := ticketsCollection.Find(context.Background(), filter)
 	if err != nil {
 		http.Error(w, "Failed to fetch tickets", http.StatusInternalServerError)
 		return
@@ -135,9 +135,9 @@ func getTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	collection := client.Database("eventdb").Collection("ticks")
+	// collection := client.Database("eventdb").Collection("ticks")
 	var ticket Ticket
-	err = collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
+	err = ticketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Ticket not found: %v", err), http.StatusNotFound)
 		return
@@ -165,9 +165,9 @@ func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Fetch the current ticket from the database
-	collection := client.Database("eventdb").Collection("ticks")
+	// collection := client.Database("eventdb").Collection("ticks")
 	var existingTicket Ticket
-	err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}).Decode(&existingTicket)
+	err := ticketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}).Decode(&existingTicket)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			http.Error(w, "Ticket not found", http.StatusNotFound)
@@ -201,7 +201,7 @@ func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Perform the update in MongoDB
-	_, err = collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": updateFields})
+	_, err = ticketsCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": updateFields})
 	if err != nil {
 		http.Error(w, "Failed to update ticket: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -230,8 +230,8 @@ func deleteTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	tickID := ps.ByName("ticketid")
 
 	// Delete the ticket from MongoDB
-	collection := client.Database("eventdb").Collection("ticks")
-	_, err := collection.DeleteOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID})
+	// collection := client.Database("eventdb").Collection("ticks")
+	_, err := ticketsCollection.DeleteOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -266,9 +266,9 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	quantityRequested := requestBody.Quantity
 
 	// Find the ticket in the database
-	collection := client.Database("eventdb").Collection("ticks")
+	// collection := client.Database("eventdb").Collection("ticks")
 	var ticket Ticket
-	err = collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
+	err = ticketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
 	if err != nil {
 		http.Error(w, "Ticket not found or other error", http.StatusNotFound)
 		return
@@ -288,7 +288,7 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Decrease the ticket quantity
 	update := bson.M{"$inc": bson.M{"quantity": -quantityRequested}}
-	_, err = collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}, update)
+	_, err = ticketsCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}, update)
 	if err != nil {
 		http.Error(w, "Failed to update ticket quantity", http.StatusInternalServerError)
 		return
@@ -317,9 +317,9 @@ func bookSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Check seat availability in the database
-	collection := client.Database("eventdb").Collection("seats")
+	// collection := client.Database("eventdb").Collection("seats")
 	// var seats []Seat
-	cursor, err := collection.Find(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}})
+	cursor, err := seatsCollection.Find(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}})
 	if err != nil {
 		http.Error(w, "Failed to retrieve seats", http.StatusInternalServerError)
 		return
@@ -342,7 +342,7 @@ func bookSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Update seats to 'booked'
-	_, err = collection.UpdateMany(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}}, bson.M{"$set": bson.M{"status": "booked"}})
+	_, err = seatsCollection.UpdateMany(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}}, bson.M{"$set": bson.M{"status": "booked"}})
 	if err != nil {
 		http.Error(w, "Failed to update seat status", http.StatusInternalServerError)
 		return
