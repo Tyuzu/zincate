@@ -69,11 +69,11 @@ func contains(slice []string, value string) bool {
 	return false
 }
 
-// // Utility function to send JSON response
-// func sendJSONResponse(w http.ResponseWriter, status int, response interface{}) {
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(status)
-// 	if err := json.NewEncoder(w).Encode(response); err != nil {
-// 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-// 	}
-// }
+// Utility function to send JSON response
+func sendJSONResponse(w http.ResponseWriter, status int, response interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
+}

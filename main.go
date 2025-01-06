@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"naevis/controller"
-	"naevis/repository"
-	"naevis/service"
 	"net/http"
 	"os"
 	"os/signal"
@@ -53,6 +50,8 @@ var (
 	seatsCollection      *mongo.Collection
 	merchCollection      *mongo.Collection
 	activitiesCollection *mongo.Collection
+	eventsCollection     *mongo.Collection
+	mediaCollection      *mongo.Collection
 	client               *mongo.Client
 )
 
@@ -107,17 +106,9 @@ func main() {
 	postsCollection = client.Database("eventdb").Collection("posts")
 	seatsCollection = client.Database("eventdb").Collection("seats")
 	merchCollection = client.Database("eventdb").Collection("merch")
-	activitiesCollection = client.Database("eventdb").Collection("merch")
-
-	eventRepo := &repository.EventRepository{
-		Collection: client.Database("eventdb").Collection("events"),
-		Tickets:    client.Database("eventdb").Collection("ticks"),
-		Media:      client.Database("eventdb").Collection("media"),
-		Merch:      client.Database("eventdb").Collection("merch"),
-	}
-
-	eventSvc := service.NewEventService(eventRepo)
-	eventCtrl := controller.NewEventController(eventSvc)
+	activitiesCollection = client.Database("eventdb").Collection("activities")
+	eventsCollection = client.Database("eventdb").Collection("events")
+	mediaCollection = client.Database("eventdb").Collection("media")
 
 	router := httprouter.New()
 
@@ -134,11 +125,11 @@ func main() {
 
 	router.POST("/initialize", rateLimit(InitializeHandler))
 
-	router.GET("/api/events/events", rateLimit(eventCtrl.GetEvents))
-	router.POST("/api/events/event", authenticate(eventCtrl.CreateEvent))
-	router.GET("/api/events/event/:eventid", eventCtrl.GetEvent)
-	router.PUT("/api/events/event/:eventid", authenticate(eventCtrl.EditEvent))
-	router.DELETE("/api/events/event/:eventid", authenticate(eventCtrl.DeleteEvent))
+	router.GET("/api/events/events", rateLimit(GetEvents))
+	router.POST("/api/events/event", authenticate(CreateEvent))
+	router.GET("/api/events/event/:eventid", GetEvent)
+	router.PUT("/api/events/event/:eventid", authenticate(EditEvent))
+	router.DELETE("/api/events/event/:eventid", authenticate(DeleteEvent))
 
 	router.POST("/api/merch/event/:eventid", authenticate(createMerch))
 	router.POST("/api/merch/event/:eventid/:merchid/buy", rateLimit(authenticate(buyMerch)))

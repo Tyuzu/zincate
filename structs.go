@@ -359,3 +359,29 @@ type Owner struct {
 	Email    string             `json:"email" bson:"email"`
 	Password string             `json:"password" bson:"password"`
 }
+
+type Event struct {
+	EventID           string                 `json:"eventid" bson:"eventid"`
+	Title             string                 `json:"title" bson:"title"`
+	Description       string                 `json:"description" bson:"description"`
+	Place             string                 `json:"place" bson:"place"`
+	Date              string                 `json:"date" bson:"date"`
+	Location          string                 `json:"location" bson:"location"`
+	CreatorID         string                 `json:"creatorid" bson:"creatorid"`
+	OrganizerName     string                 `json:"organizer_name" bson:"organizer_name"`
+	OrganizerContact  string                 `json:"organizer_contact" bson:"organizer_contact"`
+	Tickets           []Ticket               `json:"tickets" bson:"tickets"`
+	Merch             []Merch                `json:"merch" bson:"merch"`
+	StartDateTime     time.Time              `json:"start_date_time" bson:"start_date_time"`
+	EndDateTime       time.Time              `json:"end_date_time" bson:"end_date_time"`
+	Category          string                 `json:"category" bson:"category"`
+	BannerImage       string                 `json:"banner_image" bson:"banner_image"`
+	WebsiteURL        string                 `json:"website_url" bson:"website_url"`
+	Status            string                 `json:"status" bson:"status"`
+	AccessibilityInfo string                 `json:"accessibility_info" bson:"accessibility_info"`
+	SocialMediaLinks  []string               `json:"social_links" bson:"social_links"`
+	Tags              []string               `json:"tags" bson:"tags"`
+	CustomFields      map[string]interface{} `json:"custom_fields" bson:"custom_fields"`
+	CreatedAt         time.Time              `json:"created_at" bson:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at" bson:"updated_at"`
+}
