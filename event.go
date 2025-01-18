@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"naevis/mq"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -113,6 +114,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	mq.Emit("event-created")
+
 	// Respond with the created event
 	w.WriteHeader(http.StatusCreated) // 201 Created
 	if err := json.NewEncoder(w).Encode(event); err != nil {
@@ -180,8 +183,15 @@ func EditEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	mq.Emit("event-updated")
+
 	// Respond with the updated event
 	sendJSONResponse(w, http.StatusOK, updatedEvent)
+}
+
+func GetEventsCount(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	var ciount int = 3
+	sendJSONResponse(w, http.StatusOK, ciount)
 }
 
 func GetEvents(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -239,6 +249,7 @@ func GetEvents(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	//add eventcount logic here
 
 	// Encode the list of events as JSON and write to the response
 	if err := json.NewEncoder(w).Encode(events); err != nil {
@@ -361,6 +372,8 @@ func DeleteEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("event-deleted")
 
 	// Send success response
 	sendJSONResponse(w, http.StatusOK, map[string]string{"message": "Event deleted successfully"})

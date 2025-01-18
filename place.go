@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"naevis/mq"
 	"net/http"
 	"os"
 	"strconv"
@@ -111,6 +112,8 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	mq.Emit("place-created")
+
 	// Respond with the created place
 	w.WriteHeader(http.StatusCreated)
 	sanitizedPlace := map[string]interface{}{
@@ -123,6 +126,7 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		"banner":      place.Banner,
 		"created_by":  place.CreatedBy,
 	}
+
 	if err := json.NewEncoder(w).Encode(sanitizedPlace); err != nil {
 		log.Printf("Error encoding response: %v", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
@@ -318,6 +322,8 @@ func editPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// 	http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	// }
 
+	mq.Emit("place-edited")
+
 	// Respond with the created place
 	w.WriteHeader(http.StatusCreated)
 	sanitizedPlace := map[string]interface{}{
@@ -371,6 +377,8 @@ func deletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 	RdxDel("place:" + placeID) // Invalidate the cache for the deleted place
+
+	mq.Emit("place-deleted")
 
 	// Respond with success
 	w.WriteHeader(http.StatusOK)

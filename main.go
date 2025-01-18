@@ -51,6 +51,7 @@ var (
 	merchCollection      *mongo.Collection
 	activitiesCollection *mongo.Collection
 	eventsCollection     *mongo.Collection
+	gigsCollection       *mongo.Collection
 	mediaCollection      *mongo.Collection
 	client               *mongo.Client
 )
@@ -108,6 +109,7 @@ func main() {
 	merchCollection = client.Database("eventdb").Collection("merch")
 	activitiesCollection = client.Database("eventdb").Collection("activities")
 	eventsCollection = client.Database("eventdb").Collection("events")
+	gigsCollection = client.Database("eventdb").Collection("gigs")
 	mediaCollection = client.Database("eventdb").Collection("media")
 
 	router := httprouter.New()
@@ -126,10 +128,17 @@ func main() {
 	router.POST("/initialize", rateLimit(InitializeHandler))
 
 	router.GET("/api/events/events", rateLimit(GetEvents))
+	router.GET("/api/events/events/count", rateLimit(GetEventsCount))
 	router.POST("/api/events/event", authenticate(CreateEvent))
 	router.GET("/api/events/event/:eventid", GetEvent)
 	router.PUT("/api/events/event/:eventid", authenticate(EditEvent))
 	router.DELETE("/api/events/event/:eventid", authenticate(DeleteEvent))
+
+	router.GET("/api/gigs/gigs", rateLimit(GetGigs))
+	router.POST("/api/gigs/gig", authenticate(CreateGig))
+	router.GET("/api/gigs/gig/:gigid", GetGig)
+	router.PUT("/api/gigs/gig/:gigid", authenticate(EditGig))
+	router.DELETE("/api/gigs/gig/:gigid", authenticate(DeleteGig))
 
 	router.POST("/api/merch/event/:eventid", authenticate(createMerch))
 	router.POST("/api/merch/event/:eventid/:merchid/buy", rateLimit(authenticate(buyMerch)))
@@ -177,7 +186,7 @@ func main() {
 	router.PUT("/api/profile/banner", authenticate(editProfileBanner))
 	router.DELETE("/api/profile/delete", authenticate(deleteProfile))
 
-	router.GET("/api/user/:username", rateLimit(authenticate(getUserProfile)))
+	router.GET("/api/user/:username", rateLimit(getUserProfile))
 
 	router.GET("/api/feed/feed", authenticate(getPosts))
 	router.POST("/api/feed/post", rateLimit(authenticate(createTweetPost)))
@@ -232,6 +241,7 @@ func main() {
 	router.ServeFiles("/userpic/*filepath", http.Dir("userpic"))
 	router.ServeFiles("/postpic/*filepath", http.Dir("postpic"))
 	router.ServeFiles("/eventpic/*filepath", http.Dir("eventpic"))
+	router.ServeFiles("/gigpic/*filepath", http.Dir("gigpic"))
 
 	handler := securityHeaders(c.Handler(router))
 

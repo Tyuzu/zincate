@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"naevis/mq"
 	"net/http"
 	"strconv"
 	"time"
@@ -121,6 +122,8 @@ func addReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	mq.Emit("review-added")
+
 	log.Println("review : ", review.ReviewID)
 	log.Println("inserted review : ", inserted)
 
@@ -160,6 +163,8 @@ func editReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	mq.Emit("review-edited")
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -185,6 +190,8 @@ func deleteReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		http.Error(w, fmt.Sprintf("Failed to delete review: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("review-deleted")
 
 	w.WriteHeader(http.StatusOK)
 }

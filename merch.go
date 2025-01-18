@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"naevis/mq"
 	"net/http"
 	"os"
 	"strconv"
@@ -108,6 +109,8 @@ func createMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Failed to insert merchandise: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("merch-created")
 
 	// Respond with the created merchandise
 	w.Header().Set("Content-Type", "application/json")
@@ -253,6 +256,8 @@ func editMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Invalidate the specific merch cache
 	RdxDel(fmt.Sprintf("merch:%s:%s", eventID, merchID))
 
+	mq.Emit("merch-edited")
+
 	// Send response
 	// w.Header().Set("Content-Type", "application/json")
 	// w.WriteHeader(http.StatusOK)
@@ -287,6 +292,8 @@ func deleteMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Invalidate the cache
 	RdxDel(fmt.Sprintf("merch:%s:%s", eventID, merchID))
+
+	mq.Emit("merch-deleted")
 
 	// // Send response
 	// w.WriteHeader(http.StatusOK)
@@ -335,6 +342,8 @@ func buyMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Failed to update merch stock", http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("merch-bought")
 
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")

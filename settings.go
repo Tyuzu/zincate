@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"naevis/mq"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -103,6 +104,8 @@ func updateUserSetting(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		http.Error(w, "Setting not found", http.StatusNotFound)
 		return
 	}
+
+	mq.Emit("settings-updated")
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "Setting updated successfully")

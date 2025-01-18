@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"naevis/mq"
 	"net/http"
 	"os"
 	"strings"
@@ -98,12 +99,13 @@ func addMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 	}
 
-	collection := userCollection
-	_, err = collection.InsertOne(r.Context(), media)
+	_, err = mediaCollection.InsertOne(r.Context(), media)
 	if err != nil {
 		http.Error(w, "Error saving media to database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("media-created")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(media)
@@ -114,9 +116,8 @@ func getMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	entityID := ps.ByName("entityid")
 	mediaID := ps.ByName("id")
 
-	collection := userCollection
 	var media Media
-	err := collection.FindOne(r.Context(), bson.M{
+	err := mediaCollection.FindOne(r.Context(), bson.M{
 		"entityid":   entityID,
 		"entitytype": entityType,
 		"id":         mediaID,
@@ -138,8 +139,7 @@ func getMedias(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	entityType := ps.ByName("entitytype")
 	entityID := ps.ByName("entityid")
 
-	collection := userCollection
-	cursor, err := collection.Find(r.Context(), bson.M{
+	cursor, err := mediaCollection.Find(r.Context(), bson.M{
 		"entityid":   entityID,
 		"entitytype": entityType,
 	})
@@ -155,6 +155,10 @@ func getMedias(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	if len(medias) == 0 {
+		medias = []Media{}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(medias)
 }
@@ -164,8 +168,7 @@ func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	entityID := ps.ByName("entityid")
 	mediaID := ps.ByName("id")
 
-	collection := userCollection
-	_, err := collection.DeleteOne(r.Context(), bson.M{
+	_, err := mediaCollection.DeleteOne(r.Context(), bson.M{
 		"entityid":   entityID,
 		"entitytype": entityType,
 		"id":         mediaID,
@@ -174,6 +177,8 @@ func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Failed to delete media", http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("media-deleted")
 
 	// Respond with success
 	w.WriteHeader(http.StatusOK)
@@ -205,8 +210,7 @@ func editMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Fetch the media from MongoDB
 	var media Media
-	collection := userCollection
-	err = collection.FindOne(r.Context(), bson.M{
+	err = mediaCollection.FindOne(r.Context(), bson.M{
 		"entityid":   entityID,
 		"entitytype": entityType,
 		"id":         mediaID,
@@ -223,6 +227,8 @@ func editMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Cache the result
 	mediaJSON, _ := json.Marshal(media)
 	RdxSet(cacheKey, string(mediaJSON))
+
+	mq.Emit("media-edited")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(media)

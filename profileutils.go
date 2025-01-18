@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"naevis/mq"
 	"net/http"
 	"os"
 
@@ -19,6 +20,9 @@ func createThumbnail(inputPath, outputPath string) error {
 		return err
 	}
 	resizedImg := imaging.Resize(img, width, height, imaging.Lanczos)
+
+	mq.Emit("thumbnail-created")
+
 	return imaging.Save(resizedImg, outputPath)
 }
 
@@ -58,6 +62,8 @@ func uploadBannerHandler(w http.ResponseWriter, r *http.Request, claims *Claims)
 	}
 
 	update["banner_picture"] = claims.Username + ".jpg"
+
+	mq.Emit("banner-uploaded")
 
 	return update, nil
 
@@ -105,6 +111,9 @@ func updateProfilePictures(w http.ResponseWriter, r *http.Request, claims *Claim
 	createThumbnail(filePath, thumbPath)
 
 	update["profile_picture"] = claims.Username + ".jpg"
+
+	mq.Emit("avatar-uploaded")
+
 	return update, nil
 
 	// // Respond with success

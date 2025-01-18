@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	"naevis/mq"
+
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -32,7 +34,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	log.Print(":::------------------------___:::")
+
 	// // Check Redis cache for token
 	// cachedToken, err := RdxHget("tokki", user.UserID)
 	// if err != nil {
@@ -53,16 +55,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
-	log.Print(":::------------------------~~~~:::")
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(user.Password)); err != nil {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
-
-	log.Print(":::~~~~--------------------~~~~:::")
-
 	// In login function, after verifying password
 	// Remove any existing token for this user in Redis
 	_, err = RdxHdel("tokki", storedUser.UserID)
@@ -70,14 +68,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error removing existing token from Redis: %v", err)
 	}
 
-	log.Print(":::----------------------------:::")
-
 	// Create JWT claims
 	claims := &Claims{
 		Username: storedUser.Username,
 		UserID:   storedUser.UserID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(72 * time.Hour)), // Adjust expiration as needed
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(12 * time.Hour)), // Adjust expiration as needed
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -93,10 +89,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Print(":::------------~~~~~-----------:::")
+	collection := client.Database("eventdb").Collection("users")
 	// Hash the refresh token
 	hashedRefreshToken := hashToken(refreshToken)
-	_, err = userCollection.UpdateOne(
+	_, err = collection.UpdateOne(
 		context.TODO(),
 		bson.M{"userid": storedUser.UserID},
 		bson.M{"$set": bson.M{"refresh_token": hashedRefreshToken, "refresh_expiry": time.Now().Add(refreshTokenTTL)}},
@@ -106,16 +102,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Print(":::____--------~~~~~-----------:::")
-
 	// Cache the token in Redis (only cache if login is successful)
 	err = RdxHset("tokki", claims.UserID, tokenString)
 	if err != nil {
 		// Log the Redis caching failure, but allow the login to proceed
 		log.Printf("Error caching token in Redis: %v", err)
 	}
-
-	log.Print(":::____--------~~~~~-------____:::")
+	mq.Emit("user-loggedin")
 
 	// Send response with the token
 	sendResponse(w, http.StatusOK, map[string]string{"token": tokenString, "refreshToken": refreshToken, "userid": storedUser.UserID}, "Login successful", nil)
@@ -173,6 +166,8 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error caching user in Redis: %v", err)
 	}
 
+	mq.Emit("user-registered")
+
 	// go CreatePreferences(w, r, ps)
 
 	initializeUserDefaults(user.UserID)
@@ -182,7 +177,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"status":  http.StatusCreated,
 		"message": "User registered successfully",
-		"data":    user.UserID,
+		"data":    user.Username,
 	}
 	json.NewEncoder(w).Encode(response)
 }
@@ -218,6 +213,7 @@ func logoutUserHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to log out", http.StatusInternalServerError)
 		return
 	}
+	mq.Emit("user-loggedout")
 
 	sendResponse(w, http.StatusOK, nil, "User logged out successfully", nil)
 }

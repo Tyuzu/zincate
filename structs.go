@@ -379,9 +379,60 @@ type Event struct {
 	WebsiteURL        string                 `json:"website_url" bson:"website_url"`
 	Status            string                 `json:"status" bson:"status"`
 	AccessibilityInfo string                 `json:"accessibility_info" bson:"accessibility_info"`
-	SocialMediaLinks  []string               `json:"social_links" bson:"social_links"`
+	SocialMediaLinks  map[string]string      `json:"social_links" bson:"social_links"` // Changed to a map for better structure
 	Tags              []string               `json:"tags" bson:"tags"`
 	CustomFields      map[string]interface{} `json:"custom_fields" bson:"custom_fields"`
 	CreatedAt         time.Time              `json:"created_at" bson:"created_at"`
 	UpdatedAt         time.Time              `json:"updated_at" bson:"updated_at"`
+	FAQs              []FAQ                  `json:"faqs" bson:"faqs"` // Added FAQs
+}
+
+type FAQ struct {
+	Question string `json:"question" bson:"question"`
+	Answer   string `json:"answer" bson:"answer"`
+}
+
+// type Event struct {
+// 	EventID           string                 `json:"eventid" bson:"eventid"`
+// 	Title             string                 `json:"title" bson:"title"`
+// 	Description       string                 `json:"description" bson:"description"`
+// 	Place             string                 `json:"place" bson:"place"`
+// 	Date              string                 `json:"date" bson:"date"`
+// 	Location          string                 `json:"location" bson:"location"`
+// 	CreatorID         string                 `json:"creatorid" bson:"creatorid"`
+// 	OrganizerName     string                 `json:"organizer_name" bson:"organizer_name"`
+// 	OrganizerContact  string                 `json:"organizer_contact" bson:"organizer_contact"`
+// 	Tickets           []Ticket               `json:"tickets" bson:"tickets"`
+// 	Merch             []Merch                `json:"merch" bson:"merch"`
+// 	StartDateTime     time.Time              `json:"start_date_time" bson:"start_date_time"`
+// 	EndDateTime       time.Time              `json:"end_date_time" bson:"end_date_time"`
+// 	Category          string                 `json:"category" bson:"category"`
+// 	BannerImage       string                 `json:"banner_image" bson:"banner_image"`
+// 	WebsiteURL        string                 `json:"website_url" bson:"website_url"`
+// 	Status            string                 `json:"status" bson:"status"`
+// 	AccessibilityInfo string                 `json:"accessibility_info" bson:"accessibility_info"`
+// 	SocialMediaLinks  []string               `json:"social_links" bson:"social_links"`
+// 	Tags              []string               `json:"tags" bson:"tags"`
+// 	CustomFields      map[string]interface{} `json:"custom_fields" bson:"custom_fields"`
+// 	CreatedAt         time.Time              `json:"created_at" bson:"created_at"`
+// 	UpdatedAt         time.Time              `json:"updated_at" bson:"updated_at"`
+// }
+
+type Gig struct {
+	CreatorID string    `json:"creator_id" bson:"creator_id"` // ID of the user who created the gig
+	GigID     string    `json:"gigid" bson:"gigid"`           // Unique identifier for the gig
+	Name      string    `json:"name" bson:"name"`             // Name of the gig
+	About     string    `json:"about" bson:"about"`           // Description or details about the gig
+	Place     string    `json:"place" bson:"place"`           // Venue or location of the gig
+	Area      string    `json:"area" bson:"area"`             // Area or region where the gig is held
+	Type      string    `json:"type" bson:"type"`             // Type of the gig (e.g., concert, workshop, etc.)
+	Category  string    `json:"category" bson:"category"`     // Category of the gig (e.g., music, art, business)
+	Tags      []string  `json:"tags" bson:"tags"`             // Category of the gig (e.g., music, art, business)
+	Discount  string    `json:"discount" bson:"discount"`     // Contact information for the gig
+	Contact   string    `json:"contact" bson:"contact"`       // Contact information for the gig
+	CreatedAt time.Time `json:"created_at" bson:"created_at"` // Timestamp of when the gig was created
+	//
+	UpdatedAt   time.Time `json:"updated_at,omitempty" bson:"updated_at,omitempty"`     // Optional timestamp of last update
+	WebsiteURL  string    `json:"website_url,omitempty" bson:"website_url,omitempty"`   // Optional website URL for the gig
+	BannerImage string    `json:"banner_image,omitempty" bson:"banner_image,omitempty"` // Path to the uploaded banner image
 }

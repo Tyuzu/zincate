@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"naevis/mq"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -35,6 +36,9 @@ func InitializeHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 			handleEventDeletion(userID, eventID)
 		}
 	}
+
+	mq.Emit("initialized")
+
 	w.WriteHeader(http.StatusOK)
 }
 

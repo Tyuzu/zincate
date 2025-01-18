@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"naevis/mq"
 	"net/http"
 	"strconv"
 
@@ -65,6 +66,7 @@ func createTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		http.Error(w, "Failed to create ticket: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	mq.Emit("ticket-created")
 
 	// Respond with the created ticket
 	w.Header().Set("Content-Type", "application/json")
@@ -213,6 +215,7 @@ func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	} else {
 		log.Printf("Cache invalidated for event: %s", eventID)
 	}
+	mq.Emit("ticket-edited")
 
 	// Respond with success and updated fields
 	w.Header().Set("Content-Type", "application/json")
@@ -245,6 +248,8 @@ func deleteTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		"message": "Ticket deleted successfully",
 	})
 	RdxDel("event:" + eventID + ":tickets") // Invalidate cache after deletion
+
+	mq.Emit("ticket-deleted")
 }
 
 // Buy Ticket
@@ -293,6 +298,26 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Failed to update ticket quantity", http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("ticket-bought")
+
+	// Broadcast WebSocket message
+	message := map[string]interface{}{
+		"event":              "ticket-updated",
+		"eventid":            eventID,
+		"ticketid":           ticketID,
+		"quantity_remaining": ticket.Quantity - quantityRequested,
+	}
+	broadcastUpdate(message)
+	// broadcastWebSocketMessage(message)
+
+	// // After successfully decreasing the ticket quantity
+	// broadcastUpdate(map[string]interface{}{
+	// 	"event":              "ticket-updated",
+	// 	"eventid":            eventID,
+	// 	"ticketid":           ticketID,
+	// 	"quantity_remaining": ticket.Quantity - quantityRequested,
+	// })
 
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
@@ -347,6 +372,15 @@ func bookSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Failed to update seat status", http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("seats-booked")
+
+	// After successfully updating seat statuses
+	broadcastUpdate(map[string]interface{}{
+		"event":  "seats-updated",
+		"seats":  requestBody.Seats,
+		"status": "booked",
+	})
 
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")

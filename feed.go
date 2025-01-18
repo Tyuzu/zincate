@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"naevis/mq"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -145,6 +146,8 @@ func createTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 
 	newPost.ID = insertResult.InsertedID
 
+	mq.Emit("post-created")
+
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -200,6 +203,8 @@ func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, err
 		// Add relative path to media paths
 		savedPaths = append(savedPaths, "/postpic/"+fileName)
 	}
+
+	mq.Emit("post-saved")
 
 	return savedPaths, nil
 }
@@ -298,6 +303,8 @@ func editPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 	existingPost.Timestamp = updateFields["timestamp"].(string)
 
+	mq.Emit("post-edited")
+
 	// Respond with the updated post
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -336,6 +343,8 @@ func deletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
+
+	mq.Emit("post-deleted")
 
 	// Respond with a success message
 	w.Header().Set("Content-Type", "application/json")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"naevis/mq"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,11 +17,11 @@ import (
 // Handlers for user profile
 
 func getUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	claims, ok := r.Context().Value(userIDKey).(*Claims)
-	if !ok || claims.UserID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+	// claims, ok := r.Context().Value(userIDKey).(*Claims)
+	// if !ok || claims.UserID == "" {
+	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	// 	return
+	// }
 
 	username := ps.ByName("username")
 
@@ -87,6 +88,8 @@ func editProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	mq.Emit("profile-edited")
+
 	// Respond with the updated profile
 	if err := respondWithUserProfile(w, claims.Username); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -145,6 +148,7 @@ func deleteProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		http.Error(w, "Failed to delete profile", http.StatusInternalServerError)
 		return
 	}
+	mq.Emit("profile-deleted")
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Profile deleted successfully"})
@@ -177,6 +181,8 @@ func updateProfileFields(w http.ResponseWriter, r *http.Request, claims *Claims)
 		}
 		update["password"] = string(hashedPassword)
 	}
+
+	mq.Emit("profile-updated")
 
 	return update, nil
 }
@@ -239,6 +245,8 @@ func editProfilePic(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		return
 	}
 
+	mq.Emit("profilepic-updated")
+
 	// Respond with the updated profile
 	if err := respondWithUserProfile(w, claims.Username); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -272,6 +280,8 @@ func editProfileBanner(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		http.Error(w, "Failed to update banner picture", http.StatusInternalServerError)
 		return
 	}
+
+	mq.Emit("bannerpic-updated")
 
 	// Respond with the updated profile
 	if err := respondWithUserProfile(w, claims.Username); err != nil {
