@@ -147,6 +147,9 @@ func main() {
 	router.PUT("/api/merch/event/:eventid/:merchid", authenticate(editMerch))
 	router.DELETE("/api/merch/event/:eventid/:merchid", authenticate(deleteMerch))
 
+	router.POST("/api/merch/event/:eventid/:merchid/confirm-purchase", ConfirmMerchPurchase)
+	router.POST("/api/merch/event/:eventid/:merchid/payment-session", CreateMerchPaymentSession)
+
 	router.POST("/api/ticket/event/:eventid", authenticate(createTicket))
 	router.GET("/api/ticket/event/:eventid", getTickets)
 	router.GET("/api/ticket/event/:eventid/:ticketid", getTicket)
@@ -155,6 +158,10 @@ func main() {
 	router.POST("/api/ticket/event/:eventid/:ticketid/buy", authenticate(buyTicket))
 
 	router.POST("/api/seats/event/:eventid/:ticketid", rateLimit(bookSeats))
+
+	router.GET("/api/events/event/:eventid/updates", EventUpdates)
+	router.POST("/api/ticket/confirm-purchase", ConfirmTicketPurchase)
+	router.POST("/api/ticket/event/:eventid/:ticketid/payment-session", CreateTicketPaymentSession)
 
 	router.GET("/api/suggestions/places", rateLimit(suggestionsHandler))
 	router.GET("/api/suggestions/follow", authenticate(suggestFollowers))
