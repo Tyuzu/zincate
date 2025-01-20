@@ -61,12 +61,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
-	// In login function, after verifying password
-	// Remove any existing token for this user in Redis
-	_, err = RdxHdel("tokki", storedUser.UserID)
-	if err != nil {
-		log.Printf("Error removing existing token from Redis: %v", err)
-	}
+	// // In login function, after verifying password
+	// // Remove any existing token for this user in Redis
+	// _, err = RdxHdel("tokki", storedUser.UserID)
+	// if err != nil {
+	// 	log.Printf("Error removing existing token from Redis: %v", err)
+	// }
 
 	// Create JWT claims
 	claims := &Claims{
@@ -102,12 +102,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cache the token in Redis (only cache if login is successful)
-	err = RdxHset("tokki", claims.UserID, tokenString)
-	if err != nil {
-		// Log the Redis caching failure, but allow the login to proceed
-		log.Printf("Error caching token in Redis: %v", err)
-	}
+	// // Cache the token in Redis (only cache if login is successful)
+	// err = RdxHset("tokki", claims.UserID, tokenString)
+	// if err != nil {
+	// 	// Log the Redis caching failure, but allow the login to proceed
+	// 	log.Printf("Error caching token in Redis: %v", err)
+	// }
 	mq.Emit("user-loggedin")
 
 	// Send response with the token
@@ -137,10 +137,10 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = RdxHdel("tokki", user.UserID)
-	if err != nil {
-		log.Printf("Error removing existing token from Redis: %v", err)
-	}
+	// _, err = RdxHdel("tokki", user.UserID)
+	// if err != nil {
+	// 	log.Printf("Error removing existing token from Redis: %v", err)
+	// }
 
 	// Proceed with password hashing if user does not already exist
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -206,13 +206,14 @@ func logoutUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove token from Redis cache
-	_, err = RdxHdel("tokki", claims.UserID)
-	if err != nil {
-		log.Printf("Error removing token from Redis: %v", err)
-		http.Error(w, "Failed to log out", http.StatusInternalServerError)
-		return
-	}
+	// // Remove token from Redis cache
+	// _, err = RdxHdel("tokki", claims.UserID)
+	// if err != nil {
+	// 	log.Printf("Error removing token from Redis: %v", err)
+	// 	http.Error(w, "Failed to log out", http.StatusInternalServerError)
+	// 	return
+	// }
+
 	mq.Emit("user-loggedout")
 
 	sendResponse(w, http.StatusOK, nil, "User logged out successfully", nil)
@@ -251,11 +252,11 @@ func refreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Update the token in Redis
-		err = RdxHset("tokki", claims.UserID, newTokenString)
-		if err != nil {
-			log.Printf("Error updating token in Redis: %v", err)
-		}
+		// // Update the token in Redis
+		// err = RdxHset("tokki", claims.UserID, newTokenString)
+		// if err != nil {
+		// 	log.Printf("Error updating token in Redis: %v", err)
+		// }
 
 		sendResponse(w, http.StatusOK, map[string]string{"token": newTokenString}, "Token refreshed successfully", nil)
 	} else {
