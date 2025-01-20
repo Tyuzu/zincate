@@ -89,10 +89,9 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collection := client.Database("eventdb").Collection("users")
 	// Hash the refresh token
 	hashedRefreshToken := hashToken(refreshToken)
-	_, err = collection.UpdateOne(
+	_, err = userCollection.UpdateOne(
 		context.TODO(),
 		bson.M{"userid": storedUser.UserID},
 		bson.M{"$set": bson.M{"refresh_token": hashedRefreshToken, "refresh_expiry": time.Now().Add(refreshTokenTTL)}},
