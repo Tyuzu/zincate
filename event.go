@@ -114,6 +114,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	SetUserData("event", event.EventID, requestingUserID)
+
 	mq.Emit("event-created")
 
 	// Respond with the created event
@@ -372,6 +374,8 @@ func DeleteEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	DelUserData("event", event.EventID, requestingUserID)
 
 	mq.Emit("event-deleted")
 

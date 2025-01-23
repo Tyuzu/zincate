@@ -112,6 +112,8 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	SetUserData("place", place.PlaceID, requestingUserID)
+
 	mq.Emit("place-created")
 
 	// Respond with the created place
@@ -377,6 +379,8 @@ func deletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 	RdxDel("place:" + placeID) // Invalidate the cache for the deleted place
+
+	DelUserData("place", placeID, requestingUserID)
 
 	mq.Emit("place-deleted")
 

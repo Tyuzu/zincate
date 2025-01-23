@@ -13,13 +13,12 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Function to handle fetching the feed
-func getPosts(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func GetPosts(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// collection := client.Database("eventdb").Collection("posts")
 
 	// Create an empty slice to store posts
@@ -75,10 +74,44 @@ func getPosts(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	})
 }
 
+func GetPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	id := ps.ByName("postid")
+
+	// Aggregation pipeline to fetch post along with related tickets, media, and merch
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.D{{Key: "postid", Value: id}}}},
+	}
+
+	// Execute the aggregation query
+	cursor, err := postsCollection.Aggregate(context.TODO(), pipeline)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.TODO())
+
+	var post Post
+	if cursor.Next(context.TODO()) {
+		if err := cursor.Decode(&post); err != nil {
+			http.Error(w, "Failed to decode post data", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	// Encode the post as JSON and write to response
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(post); err != nil {
+		http.Error(w, "Failed to encode post data", http.StatusInternalServerError)
+	}
+}
+
 // Directory to store uploaded images/videos
 const uploadDir = "./postpic/"
 
-func createTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
 	claims, err := validateJWT(tokenString)
 	if err != nil {
@@ -94,7 +127,8 @@ func createTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 
 	userid := claims.UserID
 
-	username, _ := RdxHget("users", userid)
+	// username, _ := RdxHget("users", userid)
+	username := claims.Username
 
 	// Extract post content and type
 	postType := r.FormValue("type")
@@ -108,6 +142,7 @@ func createTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	}
 
 	newPost := Post{
+		PostID:    generateID(12),
 		Username:  username,
 		UserID:    userid,
 		Text:      postText,
@@ -138,13 +173,16 @@ func createTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 
 	// Save post in the database
 	// postsCollection := client.Database("eventdb").Collection("posts")
-	insertResult, err := postsCollection.InsertOne(context.TODO(), newPost)
+	// insertResult, err := postsCollection.InsertOne(context.TODO(), newPost)
+	_, err = postsCollection.InsertOne(context.TODO(), newPost)
 	if err != nil {
 		http.Error(w, "Failed to insert post into DB: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	newPost.ID = insertResult.InsertedID
+	// newPost.ID = insertResult.InsertedID
+
+	SetUserData("feedpost", newPost.PostID, userid)
 
 	mq.Emit("post-created")
 
@@ -204,13 +242,13 @@ func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, err
 		savedPaths = append(savedPaths, "/postpic/"+fileName)
 	}
 
-	mq.Emit("post-saved")
+	mq.Emit("postpics-uploaded")
 
 	return savedPaths, nil
 }
 
-func editPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	postID := ps.ByName("id")
+func EditPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	postID := ps.ByName("postid")
 	if postID == "" {
 		http.Error(w, "Post ID is required", http.StatusBadRequest)
 		return
@@ -229,12 +267,12 @@ func editPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	// Convert postID to an ObjectID
-	id, err := primitive.ObjectIDFromHex(postID)
-	if err != nil {
-		http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
-		return
-	}
+	// // Convert postID to an ObjectID
+	// id, err := primitive.ObjectIDFromHex(postID)
+	// if err != nil {
+	// 	http.Error(w, "Invalid Post ID format", http.StatusBadRequest)
+	// 	return
+	// }
 
 	claims, ok := r.Context().Value(userIDKey).(*Claims)
 	if !ok || claims.UserID == "" {
@@ -251,7 +289,7 @@ func editPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Check ownership of the post
 	// postsCollection := client.Database("eventdb").Collection("posts")
 	var existingPost Post
-	err = postsCollection.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&existingPost)
+	err := postsCollection.FindOne(context.TODO(), bson.M{"postid": postID}).Decode(&existingPost)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			http.Error(w, "Post not found", http.StatusNotFound)
@@ -281,7 +319,7 @@ func editPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	update := bson.M{"$set": updateFields}
 
 	// Perform the update operation
-	result, err := postsCollection.UpdateOne(context.TODO(), bson.M{"_id": id}, update)
+	result, err := postsCollection.UpdateOne(context.TODO(), bson.M{"postid": postID}, update)
 	if err != nil {
 		http.Error(w, "Failed to update post: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -316,24 +354,31 @@ func editPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 }
 
 // deletePost handles deleting a post by ID
-func deletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	postID := ps.ByName("id")
+func DeletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	postID := ps.ByName("postid")
 
 	if postID == "" {
 		http.Error(w, "Post ID is required", http.StatusBadRequest)
 		return
 	}
 
-	// Convert postID to ObjectID
-	id, err := objectIDFromString(postID)
-	if err != nil {
-		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+	// Retrieve the ID of the requesting user from the context
+	requestingUserID, ok := r.Context().Value(userIDKey).(string)
+	if !ok {
+		http.Error(w, "Invalid user", http.StatusBadRequest)
 		return
 	}
 
+	// // Convert postID to ObjectID
+	// id, err := objectIDFromString(postID)
+	// if err != nil {
+	// 	http.Error(w, "Invalid post ID", http.StatusBadRequest)
+	// 	return
+	// }
+
 	// Delete the post from MongoDB
 	// postsCollection := client.Database("eventdb").Collection("posts")
-	result, err := postsCollection.DeleteOne(context.TODO(), bson.M{"_id": id})
+	result, err := postsCollection.DeleteOne(context.TODO(), bson.M{"postid": postID})
 	if err != nil {
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
@@ -343,6 +388,8 @@ func deletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
+
+	DelUserData("feedpost", postID, requestingUserID)
 
 	mq.Emit("post-deleted")
 
@@ -355,7 +402,7 @@ func deletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	})
 }
 
-// Helper function to convert a string to ObjectID
-func objectIDFromString(id string) (interface{}, error) {
-	return primitive.ObjectIDFromHex(id)
-}
+// // Helper function to convert a string to ObjectID
+// func objectIDFromString(id string) (interface{}, error) {
+// 	return primitive.ObjectIDFromHex(id)
+// }

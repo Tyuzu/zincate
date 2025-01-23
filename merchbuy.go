@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"naevis/mq"
 	"naevis/stripe"
 	"net/http"
 
@@ -105,6 +106,13 @@ func ConfirmMerchPurchase(w http.ResponseWriter, r *http.Request, ps httprouter.
 		return
 	}
 
+	// Retrieve the ID of the requesting user from the context
+	requestingUserID, ok := r.Context().Value(userIDKey).(string)
+	if !ok {
+		http.Error(w, "Invalid user", http.StatusBadRequest)
+		return
+	}
+
 	request.EventID = ps.ByName("eventid")
 	request.MerchID = ps.ByName("merchid")
 
@@ -127,7 +135,7 @@ func ConfirmMerchPurchase(w http.ResponseWriter, r *http.Request, ps httprouter.
 		// w.Header().Set("Content-Type", "application/json")
 		// w.WriteHeader(http.StatusOK)
 		// json.NewEncoder(w).Encode(response)
-		buyxMerch(w, request)
+		buyxMerch(w, request, requestingUserID)
 	} else {
 		// If payment failed, respond with a failure message
 		http.Error(w, "Payment failed", http.StatusBadRequest)
@@ -136,7 +144,7 @@ func ConfirmMerchPurchase(w http.ResponseWriter, r *http.Request, ps httprouter.
 
 // Buy Merch
 
-func buyxMerch(w http.ResponseWriter, request MerchPurchaseRequest) {
+func buyxMerch(w http.ResponseWriter, request MerchPurchaseRequest, requestingUserID string) {
 	eventID := request.EventID
 	merchID := request.MerchID
 	stockRequested := request.Stock
@@ -163,6 +171,10 @@ func buyxMerch(w http.ResponseWriter, request MerchPurchaseRequest) {
 		http.Error(w, "Failed to update merch stock", http.StatusInternalServerError)
 		return
 	}
+
+	SetUserData("merch", merchID, requestingUserID)
+
+	mq.Emit("merch-bought")
 
 	// Respond with a success message
 	response := MerchPurchaseResponse{

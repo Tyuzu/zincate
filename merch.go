@@ -310,6 +310,13 @@ func buyMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	merchID := ps.ByName("merchid")
 
+	// Retrieve the ID of the requesting user from the context
+	requestingUserID, ok := r.Context().Value(userIDKey).(string)
+	if !ok {
+		http.Error(w, "Invalid user", http.StatusBadRequest)
+		return
+	}
+
 	// Parse the request body to extract quantity
 	var requestData struct {
 		Quantity int `json:"quantity"`
@@ -342,6 +349,8 @@ func buyMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Failed to update merch stock", http.StatusInternalServerError)
 		return
 	}
+
+	SetUserData("merch", merchID, requestingUserID)
 
 	mq.Emit("merch-bought")
 

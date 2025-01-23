@@ -257,6 +257,14 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	ticketID := ps.ByName("ticketid")
 
+	// Retrieve the ID of the requesting user from the context
+	requestingUserID, ok := r.Context().Value(userIDKey).(string)
+	if !ok {
+		http.Error(w, "Invalid user", http.StatusBadRequest)
+		return
+	}
+	userID := requestingUserID
+
 	// Decode the JSON body to get the quantity
 	var requestBody struct {
 		Quantity int `json:"quantity"`
@@ -300,6 +308,8 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	mq.Emit("ticket-bought")
+
+	SetUserData("ticket", ticketID, userID)
 
 	// Broadcast WebSocket message
 	message := map[string]interface{}{

@@ -105,6 +105,8 @@ func addMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	SetUserData("media", media.ID, requestingUserID)
+
 	mq.Emit("media-created")
 
 	w.Header().Set("Content-Type", "application/json")
@@ -168,6 +170,13 @@ func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	entityID := ps.ByName("entityid")
 	mediaID := ps.ByName("id")
 
+	// Retrieve the ID of the requesting user from the context
+	requestingUserID, ok := r.Context().Value(userIDKey).(string)
+	if !ok {
+		http.Error(w, "Invalid user", http.StatusBadRequest)
+		return
+	}
+
 	_, err := mediaCollection.DeleteOne(r.Context(), bson.M{
 		"entityid":   entityID,
 		"entitytype": entityType,
@@ -177,6 +186,8 @@ func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Failed to delete media", http.StatusInternalServerError)
 		return
 	}
+
+	DelUserData("media", mediaID, requestingUserID)
 
 	mq.Emit("media-deleted")
 

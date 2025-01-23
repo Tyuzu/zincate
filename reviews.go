@@ -122,6 +122,8 @@ func addReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	SetUserData("review", review.ReviewID, userId)
+
 	mq.Emit("review-added")
 
 	log.Println("review : ", review.ReviewID)
@@ -190,6 +192,8 @@ func deleteReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		http.Error(w, fmt.Sprintf("Failed to delete review: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	DelUserData("review", reviewId, userId)
 
 	mq.Emit("review-deleted")
 

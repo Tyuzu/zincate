@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"naevis/mq"
 	"naevis/stripe"
 	"net/http"
 	"sync"
@@ -184,7 +185,7 @@ func ConfirmTicketPurchase(w http.ResponseWriter, r *http.Request, _ httprouter.
 		// w.Header().Set("Content-Type", "application/json")
 		// w.WriteHeader(http.StatusOK)
 		// json.NewEncoder(w).Encode(response)
-		buyxTicket(w, request)
+		buyxTicket(w, r, request)
 	} else {
 		// If payment failed, respond with a failure message
 		http.Error(w, "Payment failed", http.StatusBadRequest)
@@ -192,10 +193,17 @@ func ConfirmTicketPurchase(w http.ResponseWriter, r *http.Request, _ httprouter.
 }
 
 // Buy Ticket
-func buyxTicket(w http.ResponseWriter, request TicketPurchaseRequest) {
+func buyxTicket(w http.ResponseWriter, r *http.Request, request TicketPurchaseRequest) {
 	eventID := request.EventID
 	ticketID := request.TicketID
 	quantityRequested := request.Quantity
+
+	// Retrieve the ID of the requesting user from the context
+	requestingUserID, ok := r.Context().Value(userIDKey).(string)
+	if !ok {
+		http.Error(w, "Invalid user", http.StatusBadRequest)
+		return
+	}
 
 	// Find the ticket in the database
 	// collection := client.Database("eventdb").Collection("ticks")
@@ -233,6 +241,10 @@ func buyxTicket(w http.ResponseWriter, request TicketPurchaseRequest) {
 	// 	"success": true,
 	// 	"message": "Ticket purchased successfully",
 	// })
+
+	mq.Emit("ticket-bought")
+
+	SetUserData("ticket", ticketID, requestingUserID)
 
 	// Respond with a success message
 	response := TicketPurchaseResponse{

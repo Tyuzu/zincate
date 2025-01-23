@@ -6,28 +6,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type UserFollow struct {
-	UserID    string   `json:"userid" bson:"userid"`
-	Follows   []string `json:"follows,omitempty" bson:"follows,omitempty"`
-	Followers []string `json:"followers,omitempty" bson:"followers,omitempty"`
-	// Follows   []primitive.ObjectID `json:"follows,omitempty" bson:"follows,omitempty"`
-	// Followers []primitive.ObjectID `json:"followers,omitempty" bson:"followers,omitempty"`
-}
-
-// UserProfileResponse defines the structure for the user profile response
-type UserProfileResponse struct {
-	UserID         string            `json:"userid" bson:"userid"`
-	Username       string            `json:"username" bson:"username"`
-	Email          string            `json:"email" bson:"email"`
-	Bio            string            `json:"bio,omitempty" bson:"bio,omitempty"`
-	PhoneNumber    string            `json:"phone_number,omitempty" bson:"phone_number,omitempty"`
-	ProfilePicture string            `json:"profile_picture" bson:"profile_picture"`
-	BannerPicture  string            `json:"banner_picture" bson:"banner_picture"`
-	IsFollowing    bool              `json:"is_following" bson:"is_following"` // Added here
-	Followers      int               `json:"followers" bson:"followers"`
-	Follows        int               `json:"follows" bson:"follows"`
-	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
-}
 type Activity struct {
 	Username     string              `json:"username,omitempty" bson:"username,omitempty"`
 	PlaceID      string              `json:"placeId,omitempty" bson:"placeId,omitempty"`
@@ -65,12 +43,136 @@ type User struct {
 	DateOfBirth    time.Time         `json:"date_of_birth,omitempty" bson:"date_of_birth,omitempty"`
 	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
 	IsVerified     bool              `json:"is_verified" bson:"is_verified"`
-	// Follows        []string             `json:"follows,omitempty" bson:"follows,omitempty"`
-	// Followers      []string             `json:"followers,omitempty" bson:"followers,omitempty"`
-	PasswordHash string               `json:"password_hash" bson:"password_hash"`
-	Banner       string               `json:"banner,omitempty" bson:"banner,omitempty"`
-	Following    []primitive.ObjectID `json:"following" bson:"following"`
+	PasswordHash   string            `json:"password_hash" bson:"password_hash"`
 }
+
+// UserProfileResponse defines the structure for the user profile response
+type UserProfileResponse struct {
+	UserID         string            `json:"userid" bson:"userid"`
+	Username       string            `json:"username" bson:"username"`
+	Email          string            `json:"email" bson:"email"`
+	Bio            string            `json:"bio,omitempty" bson:"bio,omitempty"`
+	PhoneNumber    string            `json:"phone_number,omitempty" bson:"phone_number,omitempty"`
+	ProfilePicture string            `json:"profile_picture" bson:"profile_picture"`
+	BannerPicture  string            `json:"banner_picture" bson:"banner_picture"`
+	IsFollowing    bool              `json:"is_following" bson:"is_following"` // Added here
+	Followers      int               `json:"followers" bson:"followers"`
+	Follows        int               `json:"follows" bson:"follows"`
+	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
+}
+
+type UserFollow struct {
+	UserID    string   `json:"userid" bson:"userid"`
+	Follows   []string `json:"follows,omitempty" bson:"follows,omitempty"`
+	Followers []string `json:"followers,omitempty" bson:"followers,omitempty"`
+}
+
+type UserData struct {
+	UserID     string    `json:"userid" bson:"userid"`
+	EntityID   string    `json:"entity_id" bson:"entity_id"`
+	EntityType string    `json:"entity_type" bson:"entity_type"`
+	CreatedAt  time.Time `json:"created_at" bson:"created_at"`
+}
+
+// type UserContent struct {
+// 	Places      []string `json:"places" bson:"places"`
+// 	Events      []string `json:"events" bson:"events"`
+// 	Posts       []string `json:"posts" bson:"posts"`
+// 	Media       []string `json:"media" bson:"media"`
+// 	Blogs       []string `json:"blogs" bson:"blogs"`
+// 	Collections []string `json:"collections" bson:"collections"`
+// }
+
+// type UserActivity struct {
+// 	Tickets    []ContentActivity `json:"tickets" bson:"tickets"`
+// 	Merch      []ContentActivity `json:"merch" bson:"merch"`
+// 	Reviews    []ContentActivity `json:"reviews" bson:"reviews"`
+// 	Comments   []ContentActivity `json:"comments" bson:"comments"`
+// 	Likes      []ContentActivity `json:"likes" bson:"likes"`
+// 	Favourites []ContentActivity `json:"favourites" bson:"favourites"`
+// 	Bookings   []ContentActivity `json:"bookings" bson:"bookings"`
+// }
+
+// const (
+// 	EntityTypeEvent = "event"
+// 	EntityTypePlace = "place"
+// 	EntityTypeMedia = "media"
+// 	EntityTypeMerch = "merch"
+// )
+
+// type UserActivity struct {
+// 	Tickets    []TicketType     `json:"tickets" bson:"tickets"`
+// 	Merch      []MerchType      `json:"merch" bson:"merch"`
+// 	Reviews    []ReviewType     `json:"reviews" bson:"reviews"`
+// 	Comments   []string         `json:"comments" bson:"comments"` // Assuming IDs
+// 	Likes      []LikeEntityType `json:"likes" bson:"likes"`
+// 	Favourites []Favourite      `json:"favourites" bson:"favourites"`
+// 	Bookings   []BookingType    `json:"bookings" bson:"bookings"`
+// }
+
+// type TicketType string
+
+// const (
+// 	VIP       TicketType = "vip"
+// 	Standard  TicketType = "standard"
+// 	EarlyBird TicketType = "early_bird"
+// )
+
+// type MerchType string
+
+// const (
+// 	TShirt MerchType = "tshirt"
+// 	Mug    MerchType = "mug"
+// 	Poster MerchType = "poster"
+// )
+
+// type ReviewType string
+
+// const (
+// 	Positive ReviewType = "positive"
+// 	Negative ReviewType = "negative"
+// 	Neutral  ReviewType = "neutral"
+// )
+
+// type LikeEntityType string
+
+// const (
+// 	Event LikeEntityType = "event"
+// 	Post  LikeEntityType = "post"
+// 	Media LikeEntityType = "media"
+// )
+
+// type BookingType string
+
+// const (
+// 	Hotel          BookingType = "hotel"
+// 	Event          BookingType = "event"
+// 	Transportation BookingType = "transportation"
+// )
+
+// type UserActivity struct {
+// 	Tickets  []string `json:"tickets" bson:"tickets"`
+// 	Merch    []string `json:"merch" bson:"merch"`
+// 	Reviews  []string `json:"reviews" bson:"reviews"`
+// 	Comments []string `json:"comments" bson:"comments"`
+// 	Likes      []string    `json:"likes" bson:"likes"`
+// 	Favourites []Favourite `json:"favourites" bson:"favourites"`
+// 	Bookings []string `json:"bookings" bson:"bookings"`
+// }
+
+// type Favourite struct {
+// 	EntityID   string        `json:"entity_id" bson:"entity_id"`
+// 	EntityType FavEntityType `json:"entity_type" bson:"entity_type"`
+// }
+
+// type FavEntityType string
+
+// const (
+// 	EVENT FavEntityType = "event"
+// 	PLACE FavEntityType = "place"
+// 	MERCH FavEntityType = "merch"
+// 	MEDIA FavEntityType = "media"
+// )
 
 // type User struct {
 // 	// ID          string    `json:"-" bson:"_id,omitempty"`
@@ -110,14 +212,15 @@ type UserSettings struct {
 }
 
 type Post struct {
-	ID        interface{} `bson:"_id,omitempty" json:"id"`
-	UserID    string      `json:"userid" bson:"userid"`
-	Username  string      `bson:"username" json:"username"`
-	Text      string      `bson:"text" json:"text"`
-	Type      string      `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
-	Media     []string    `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
-	Timestamp string      `bson:"timestamp" json:"timestamp"`
-	Likes     int         `bson:"likes" json:"likes"`
+	// ID        interface{} `bson:"_id,omitempty" json:"id"`
+	PostID    string   `bson:"postid,omitempty" json:"postid"`
+	UserID    string   `json:"userid" bson:"userid"`
+	Username  string   `bson:"username" json:"username"`
+	Text      string   `bson:"text" json:"text"`
+	Type      string   `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
+	Media     []string `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
+	Timestamp string   `bson:"timestamp" json:"timestamp"`
+	Likes     int      `bson:"likes" json:"likes"`
 	// ID         primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
 	Content   string               `json:"content" bson:"content"`
 	MediaURL  string               `json:"media_url,omitempty" bson:"media_url,omitempty"`

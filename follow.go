@@ -14,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func doesFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func DoesFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	claims, ok := r.Context().Value(userIDKey).(*Claims)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -42,7 +42,7 @@ func doesFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func getFollowers(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func GetFollowers(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	claims, ok := r.Context().Value(userIDKey).(*Claims)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -69,7 +69,7 @@ func getFollowers(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	json.NewEncoder(w).Encode(followers)
 }
 
-func getFollowing(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func GetFollowing(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	claims, ok := r.Context().Value(userIDKey).(*Claims)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -96,7 +96,7 @@ func getFollowing(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	json.NewEncoder(w).Encode(following)
 }
 
-func updateFollowRelationship(currentUserID, targetUserID, action string) error {
+func UpdateFollowRelationship(currentUserID, targetUserID, action string) error {
 	if action != "follow" && action != "unfollow" {
 		return fmt.Errorf("invalid action: %s", action)
 	}
@@ -144,7 +144,7 @@ func updateFollowRelationship(currentUserID, targetUserID, action string) error 
 	return nil
 }
 
-func handleFollowAction(w http.ResponseWriter, r *http.Request, ps httprouter.Params, action string) {
+func HandleFollowAction(w http.ResponseWriter, r *http.Request, ps httprouter.Params, action string) {
 	claims, ok := r.Context().Value(userIDKey).(*Claims)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -153,11 +153,13 @@ func handleFollowAction(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 	currentUserID := claims.UserID
 	targetUserID := ps.ByName("id")
 
-	if err := updateFollowRelationship(currentUserID, targetUserID, action); err != nil {
+	if err := UpdateFollowRelationship(currentUserID, targetUserID, action); err != nil {
 		log.Printf("Error updating follow relationship: %v", err)
 		http.Error(w, "Failed to update follow relationship", http.StatusInternalServerError)
 		return
 	}
+
+	SetUserData(action, targetUserID, currentUserID)
 
 	response := map[string]any{
 		"isFollowing": action == "follow",
@@ -168,12 +170,12 @@ func handleFollowAction(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 	json.NewEncoder(w).Encode(response)
 }
 
-func toggleFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	handleFollowAction(w, r, ps, "follow")
+func ToggleFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	HandleFollowAction(w, r, ps, "follow")
 }
 
-func toggleUnFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	handleFollowAction(w, r, ps, "unfollow")
+func ToggleUnFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	HandleFollowAction(w, r, ps, "unfollow")
 }
 
 // func doesFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
