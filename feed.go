@@ -8,6 +8,7 @@ import (
 	"naevis/mq"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -109,7 +110,7 @@ func GetPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 }
 
 // Directory to store uploaded images/videos
-const uploadDir = "./postpic/"
+const feedVideoUploadDir = "./postpic/"
 
 func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
@@ -162,7 +163,7 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 			return
 		}
 	case "video":
-		mediaPaths, err = saveUploadedFiles(r, "videos", "video")
+		mediaPaths, err = saveUploadedVideoFile(r, "videos", "video")
 		if err != nil {
 			http.Error(w, "Failed to upload videos: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -196,6 +197,181 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	})
 }
 
+func saveUploadedVideoFile(r *http.Request, formKey, _ string) ([]string, error) {
+	// func saveUploadedVideoFile(r *http.Request, formKey string) (string, error) {
+	files := r.MultipartForm.File[formKey]
+	if len(files) == 0 {
+		return nil, nil // No file to process
+	}
+
+	// Only process the first file in the list
+	file := files[0]
+
+	// Open uploaded file
+	src, err := file.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open video file: %w", err)
+	}
+	defer src.Close()
+
+	// Generate a unique file name
+	uniqueID := generateID(16)
+	originalFileName := uniqueID + ".mp4"
+	originalFilePath := filepath.Join(feedVideoUploadDir, originalFileName)
+
+	// Ensure upload directory exists
+	if err := os.MkdirAll(feedVideoUploadDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create upload directory: %w", err)
+	}
+
+	// Save the original file
+	dst, err := os.Create(originalFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save video file: %w", err)
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return nil, fmt.Errorf("failed to write video file: %w", err)
+	}
+
+	// Resolutions to process
+	resolutions := []struct {
+		Label string
+		Size  string
+	}{
+		{"144p", "256x144"},
+		{"480p", "854x480"},
+		{"720p", "1280x720"},
+	}
+
+	var highestResolutionPath string
+
+	// Process each resolution
+	for _, res := range resolutions {
+		// outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, res.Label)
+		outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, res.Label)
+		outputFilePath := filepath.Join(feedVideoUploadDir, outputFileName)
+
+		// Use FFMPEG to create the resolution
+		ffmpegCmd := exec.Command(
+			"ffmpeg",
+			"-i", originalFilePath,
+			"-vf", fmt.Sprintf("scale=%s", res.Size),
+			"-c:v", "libx264",
+			"-crf", "23",
+			"-preset", "veryfast",
+			"-c:a", "aac",
+			"-b:a", "128k",
+			"-movflags", "+faststart",
+			outputFilePath,
+		)
+
+		// Run the FFMPEG command
+		if err := ffmpegCmd.Run(); err != nil {
+			return nil, fmt.Errorf("failed to create %s video: %w", res.Label, err)
+		}
+
+		// Save the highest resolution path (last processed resolution)
+		highestResolutionPath = "/postpic/" + originalFileName
+	}
+
+	// Notify MQ system about the uploaded video
+	mq.Emit("postpics-uploaded")
+
+	// Return the highest resolution video path
+	return []string{highestResolutionPath}, nil
+}
+
+// func saveUploadedVideoFile(r *http.Request, formKey, fileType string) ([]string, error) {
+// 	files := r.MultipartForm.File[formKey]
+// 	if len(files) == 0 {
+// 		return nil, nil // No files to process
+// 	}
+
+// 	var savedPaths []string
+// 	for _, file := range files {
+// 		// Open uploaded file
+// 		src, err := file.Open()
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to open %s file: %w", fileType, err)
+// 		}
+// 		defer src.Close()
+
+// 		// Generate a unique file name
+// 		uniqueID := generateID(16)
+// 		sanitizedExt := ".jpg" // Default extension
+// 		if fileType == "video" {
+// 			sanitizedExt = ".mp4"
+// 		}
+// 		fileName := uniqueID + sanitizedExt
+// 		originalFilePath := filepath.Join(feedVideoUploadDir, fileName)
+
+// 		// Ensure upload directory exists
+// 		if err := os.MkdirAll(feedVideoUploadDir, 0755); err != nil {
+// 			return nil, fmt.Errorf("failed to create upload directory: %w", err)
+// 		}
+
+// 		// Save the original file
+// 		dst, err := os.Create(originalFilePath)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to save %s file: %w", fileType, err)
+// 		}
+// 		defer dst.Close()
+
+// 		if _, err := io.Copy(dst, src); err != nil {
+// 			return nil, fmt.Errorf("failed to write %s file: %w", fileType, err)
+// 		}
+
+// 		// If file type is video, create multiple resolutions
+// 		if fileType == "video" {
+// 			resolutions := []struct {
+// 				Label string
+// 				Size  string
+// 			}{
+// 				{"144p", "256x144"},
+// 				{"480p", "854x480"},
+// 				{"720p", "1280x720"},
+// 			}
+
+// 			for _, res := range resolutions {
+// 				outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, res.Label)
+// 				outputFilePath := filepath.Join(feedVideoUploadDir, outputFileName)
+
+// 				// Use FFMPEG to create the resolution
+// 				ffmpegCmd := exec.Command(
+// 					"ffmpeg",
+// 					"-i", originalFilePath,
+// 					"-vf", fmt.Sprintf("scale=%s", res.Size),
+// 					"-c:v", "libx264",
+// 					"-crf", "23",
+// 					"-preset", "veryfast",
+// 					"-c:a", "aac",
+// 					"-b:a", "128k",
+// 					"-movflags", "+faststart",
+// 					outputFilePath,
+// 				)
+
+// 				// Run the FFMPEG command
+// 				if err := ffmpegCmd.Run(); err != nil {
+// 					return nil, fmt.Errorf("failed to create %s video: %w", res.Label, err)
+// 				}
+
+// 				// Add relative path of the generated video to savedPaths
+// 				savedPaths = append(savedPaths, "/postpic/"+outputFileName)
+// 			}
+// 		} else {
+// 			// Add relative path of the original file to savedPaths
+// 			savedPaths = append(savedPaths, "/postpic/"+fileName)
+// 		}
+// 	}
+
+// 	// Notify MQ system about uploaded media
+// 	mq.Emit("postpics-uploaded")
+
+// 	return savedPaths, nil
+// }
+
 // saveUploadedFiles handles saving uploaded files and returns their paths
 func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, error) {
 	files := r.MultipartForm.File[formKey]
@@ -220,10 +396,10 @@ func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, err
 			sanitizedExt = ".mp4"
 		}
 		fileName := uniqueID + sanitizedExt
-		dstFilePath := filepath.Join(uploadDir, fileName)
+		dstFilePath := filepath.Join(feedVideoUploadDir, fileName)
 
 		// Ensure upload directory exists
-		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		if err := os.MkdirAll(feedVideoUploadDir, 0755); err != nil {
 			return nil, fmt.Errorf("failed to create upload directory: %w", err)
 		}
 

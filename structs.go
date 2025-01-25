@@ -68,10 +68,10 @@ type UserFollow struct {
 }
 
 type UserData struct {
-	UserID     string    `json:"userid" bson:"userid"`
-	EntityID   string    `json:"entity_id" bson:"entity_id"`
-	EntityType string    `json:"entity_type" bson:"entity_type"`
-	CreatedAt  time.Time `json:"created_at" bson:"created_at"`
+	UserID     string `json:"userid" bson:"userid"`
+	EntityID   string `json:"entity_id" bson:"entity_id"`
+	EntityType string `json:"entity_type" bson:"entity_type"`
+	CreatedAt  string `json:"created_at" bson:"created_at"`
 }
 
 // type UserContent struct {
@@ -228,6 +228,24 @@ type Post struct {
 	CreatedAt time.Time            `json:"created_at" bson:"created_at"`
 }
 
+type BlogPost struct {
+	// ID        interface{} `bson:"_id,omitempty" json:"id"`
+	PostID    string   `bson:"postid,omitempty" json:"postid"`
+	UserID    string   `json:"userid" bson:"userid"`
+	Username  string   `json:"username" bson:"username"`
+	Title     string   `bson:"title" json:"title"`
+	Text      string   `bson:"text" json:"text"`
+	Type      string   `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
+	Media     []string `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
+	Timestamp string   `bson:"timestamp" json:"timestamp"`
+	Likes     int      `bson:"likes" json:"likes"`
+	// ID         primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
+	Content   string               `json:"content" bson:"content"`
+	Category  string               `json:"category,omitempty" bson:"category,omitempty"`
+	Likers    []primitive.ObjectID `json:"likers" bson:"likers"`
+	CreatedAt time.Time            `json:"created_at" bson:"created_at"`
+}
+
 type Merch struct {
 	MerchID     string             `json:"merchid" bson:"merchid"`
 	EventID     string             `json:"eventid" bson:"eventid"` // Reference to Event ID
@@ -288,19 +306,19 @@ type Suggestion struct {
 }
 
 type Review struct {
-	EntityID    string    `json:"entity_id" bson:"entity_id"`
-	EntityType  string    `json:"entity_type" bson:"entity_type"` // "event" or "place"
-	Comment     string    `json:"comment,omitempty" bson:"comment,omitempty"`
-	UpdatedAt   time.Time `json:"updated_at" bson:"updated_at"`
-	Content     string    `bson:"content" json:"content"`
-	ReviewID    string    `json:"reviewid" bson:"reviewid"`
-	UserID      string    `json:"userid" bson:"userid"` // Reference to User ID
-	Rating      int       `json:"rating" bson:"rating"` // Rating out of 5
-	Date        time.Time `json:"date" bson:"date"`     // Date of the review
-	Likes       int       `json:"likes,omitempty" bson:"likes,omitempty"`
-	Dislikes    int       `json:"dislikes,omitempty" bson:"dislikes,omitempty"`
-	Attachments []string  `json:"attachments,omitempty" bson:"attachments,omitempty"`
-	CreatedAt   time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
+	EntityID    string   `json:"entity_id" bson:"entity_id"`
+	EntityType  string   `json:"entity_type" bson:"entity_type"` // "event" or "place"
+	Comment     string   `json:"comment,omitempty" bson:"comment,omitempty"`
+	UpdatedAt   string   `json:"updated_at" bson:"updated_at"`
+	Content     string   `bson:"content" json:"content"`
+	ReviewID    string   `json:"reviewid" bson:"reviewid"`
+	UserID      string   `json:"userid" bson:"userid"` // Reference to User ID
+	Rating      int      `json:"rating" bson:"rating"` // Rating out of 5
+	Date        string   `json:"date" bson:"date"`     // Date of the review
+	Likes       int      `json:"likes,omitempty" bson:"likes,omitempty"`
+	Dislikes    int      `json:"dislikes,omitempty" bson:"dislikes,omitempty"`
+	Attachments []string `json:"attachments,omitempty" bson:"attachments,omitempty"`
+	CreatedAt   string   `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
 }
 
 type Media struct {

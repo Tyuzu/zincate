@@ -301,7 +301,7 @@ func editPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Update the `updated_at` field
-	updateFields["updated_at"] = time.Now()
+	updateFields["updated_at"] = time.Now().Format(time.RFC3339)
 
 	// Update the place in the database
 	_, err = placesCollection.UpdateOne(context.TODO(), bson.M{"placeid": placeID}, bson.M{"$set": updateFields})

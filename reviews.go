@@ -114,7 +114,7 @@ func addReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	review.UserID = userId
 	review.EntityType = entityType
 	review.EntityID = entityId
-	review.Date = time.Now()
+	review.Date = time.Now().Format(time.RFC3339)
 
 	inserted, err := reviewsCollection.InsertOne(context.TODO(), review)
 	if err != nil {

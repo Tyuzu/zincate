@@ -65,7 +65,7 @@ func AddUserData(entityType, entityId, userId string) {
 	content.EntityID = entityId
 	content.EntityType = entityType
 	content.UserID = userId
-	content.CreatedAt = time.Now()
+	content.CreatedAt = time.Now().Format(time.RFC3339)
 	// Insert the content into MongoDB
 	_, err := userDataCollection.InsertOne(context.TODO(), content)
 	if err != nil {

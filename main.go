@@ -53,6 +53,7 @@ var (
 	eventsCollection     *mongo.Collection
 	gigsCollection       *mongo.Collection
 	mediaCollection      *mongo.Collection
+	blogCollection       *mongo.Collection
 	client               *mongo.Client
 )
 
@@ -111,6 +112,7 @@ func main() {
 	eventsCollection = client.Database("eventdb").Collection("events")
 	gigsCollection = client.Database("eventdb").Collection("gigs")
 	mediaCollection = client.Database("eventdb").Collection("media")
+	blogCollection = client.Database("eventdb").Collection("blogs")
 
 	router := httprouter.New()
 
@@ -194,6 +196,12 @@ func main() {
 	router.POST("/api/feed/post", rateLimit(authenticate(CreateTweetPost)))
 	router.PUT("/api/feed/post/:postid", authenticate(EditPost))
 	router.DELETE("/api/feed/post/:postid", authenticate(DeletePost))
+
+	router.GET("/api/blog/blog", authenticate(GetBlogPosts))
+	router.GET("/api/blog/post/:postid", authenticate(GetBlogPost))
+	router.POST("/api/blog/post", rateLimit(authenticate(CreateBlogPost)))
+	router.PUT("/api/blog/post/:postid", authenticate(EditBlogPost))
+	router.DELETE("/api/blog/post/:postid", authenticate(DeleteBlogPost))
 
 	// router.PUT("/api/follows/:id", rateLimit(authenticate(ToggleFollow)))
 	// router.DELETE("/api/follows/:id", rateLimit(authenticate(ToggleUnFollow)))
