@@ -25,7 +25,7 @@ var validEntityTypes = map[string]bool{
 	"like":       true,
 	"favourite":  true,
 	"booking":    true,
-	"blog":       true,
+	"blogpost":   true,
 	"collection": true,
 }
 

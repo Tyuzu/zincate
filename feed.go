@@ -243,9 +243,12 @@ func saveUploadedVideoFile(r *http.Request, formKey, _ string) ([]string, error)
 		{"144p", "256x144"},
 		{"480p", "854x480"},
 		{"720p", "1280x720"},
+		// {"1080p", "1920x1080"},
 	}
 
 	var highestResolutionPath string
+
+	go createSubtitleFile(uniqueID)
 
 	// Process each resolution
 	for _, res := range resolutions {
@@ -421,6 +424,84 @@ func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, err
 	mq.Emit("postpics-uploaded")
 
 	return savedPaths, nil
+}
+
+func createSubtitleFile(uniqueID string) {
+	// Example subtitles
+	subtitles := []Subtitle{
+		{
+			Index:   1,
+			Start:   "00:00:00.000",
+			End:     "00:00:05.000",
+			Content: "Welcome to the tutorial!",
+		},
+		{
+			Index:   2,
+			Start:   "00:00:06.000",
+			End:     "00:00:10.000",
+			Content: "In this video, we'll learn how to create subtitles in Go.",
+		},
+		{
+			Index:   3,
+			Start:   "00:00:11.000",
+			End:     "00:00:15.000",
+			Content: "Let's get started!",
+		},
+	}
+
+	var lang = "english"
+
+	// File name for the .vtt file
+	// fileName := "example.vtt"
+	fileName := fmt.Sprintf("./postpic/%s-%s.vtt", uniqueID, lang)
+
+	// Create the VTT file
+	err := createVTTFile(fileName, subtitles)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Subtitle file %s created successfully!\n", fileName)
+}
+
+// Subtitle represents a single subtitle entry
+type Subtitle struct {
+	Index   int
+	Start   string // Start time in format "hh:mm:ss.mmm"
+	End     string // End time in format "hh:mm:ss.mmm"
+	Content string // Subtitle text
+}
+
+func createVTTFile(fileName string, subtitles []Subtitle) error {
+	// Create or overwrite the file
+	file, err := os.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	// Write the WebVTT header
+	_, err = file.WriteString("WEBVTT\n\n")
+	if err != nil {
+		return fmt.Errorf("failed to write header: %v", err)
+	}
+
+	// Write each subtitle entry
+	for _, subtitle := range subtitles {
+		entry := fmt.Sprintf("%d\n%s --> %s\n%s\n\n",
+			subtitle.Index,
+			subtitle.Start,
+			subtitle.End,
+			subtitle.Content,
+		)
+		_, err := file.WriteString(entry)
+		if err != nil {
+			return fmt.Errorf("failed to write subtitle entry: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func EditPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
