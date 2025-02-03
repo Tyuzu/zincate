@@ -163,7 +163,7 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 			return
 		}
 	case "video":
-		mediaPaths, err = saveUploadedVideoFile(r, "videos", "video")
+		mediaPaths, err = saveUploadedVideoFile(r, "videos")
 		if err != nil {
 			http.Error(w, "Failed to upload videos: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -196,25 +196,21 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 		"data":    newPost,
 	})
 }
-
-func saveUploadedVideoFile(r *http.Request, formKey, _ string) ([]string, error) {
-	// func saveUploadedVideoFile(r *http.Request, formKey string) (string, error) {
+func saveUploadedVideoFile(r *http.Request, formKey string) ([]string, error) {
 	files := r.MultipartForm.File[formKey]
 	if len(files) == 0 {
 		return nil, nil // No file to process
 	}
 
-	// Only process the first file in the list
+	// Process the first file only
 	file := files[0]
-
-	// Open uploaded file
 	src, err := file.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open video file: %w", err)
 	}
 	defer src.Close()
 
-	// Generate a unique file name
+	// Generate unique filename
 	uniqueID := generateID(16)
 	originalFileName := uniqueID + ".mp4"
 	originalFilePath := filepath.Join(feedVideoUploadDir, originalFileName)
@@ -225,155 +221,100 @@ func saveUploadedVideoFile(r *http.Request, formKey, _ string) ([]string, error)
 	}
 
 	// Save the original file
-	dst, err := os.Create(originalFilePath)
-	if err != nil {
+	if err := saveFile(src, originalFilePath); err != nil {
 		return nil, fmt.Errorf("failed to save video file: %w", err)
 	}
-	defer dst.Close()
 
-	if _, err := io.Copy(dst, src); err != nil {
-		return nil, fmt.Errorf("failed to write video file: %w", err)
-	}
-
-	// Resolutions to process
-	resolutions := []struct {
-		Label string
-		Size  string
-	}{
-		{"144p", "256x144"},
-		{"480p", "854x480"},
-		{"720p", "1280x720"},
-		// {"1080p", "1920x1080"},
+	// Generate video resolutions
+	resolutions := map[string]string{
+		"144p": "256x144",
+		"480p": "854x480",
+		"720p": "1280x720",
 	}
 
 	var highestResolutionPath string
-
-	go createSubtitleFile(uniqueID)
-
-	// Process each resolution
-	for _, res := range resolutions {
-		// outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, res.Label)
-		outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, res.Label)
+	for label, size := range resolutions {
+		outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, label)
 		outputFilePath := filepath.Join(feedVideoUploadDir, outputFileName)
+		outputPosterName := fmt.Sprintf("%s-%s.jpg", uniqueID, label)
+		outputPosterPath := filepath.Join(feedVideoUploadDir, outputPosterName)
 
-		// Use FFMPEG to create the resolution
-		ffmpegCmd := exec.Command(
-			"ffmpeg",
-			"-i", originalFilePath,
-			"-vf", fmt.Sprintf("scale=%s", res.Size),
-			"-c:v", "libx264",
-			"-crf", "23",
-			"-preset", "veryfast",
-			"-c:a", "aac",
-			"-b:a", "128k",
-			"-movflags", "+faststart",
-			outputFilePath,
-		)
-
-		// Run the FFMPEG command
-		if err := ffmpegCmd.Run(); err != nil {
-			return nil, fmt.Errorf("failed to create %s video: %w", res.Label, err)
+		if err := processVideoResolution(originalFilePath, outputFilePath, size); err != nil {
+			return nil, fmt.Errorf("failed to create %s video: %w", label, err)
 		}
+		fmt.Printf("Video file %s created successfully!\n", outputFileName)
 
-		// Save the highest resolution path (last processed resolution)
-		highestResolutionPath = "/postpic/" + originalFileName
+		if err := createVideoPoster(outputFilePath, outputPosterPath); err != nil {
+			return nil, fmt.Errorf("failed to create %s poster: %w", label, err)
+		}
+		fmt.Printf("Poster file %s created successfully!\n", outputPosterName)
+
+		highestResolutionPath = "/postpic/" + outputFileName
 	}
+
+	// Generate a default poster from the original video (at 5 seconds)
+	defaultPosterPath := filepath.Join(feedVideoUploadDir, fmt.Sprintf("%s.jpg", uniqueID))
+	if err := createPoster(originalFilePath, defaultPosterPath); err != nil {
+		return nil, fmt.Errorf("failed to create default video poster: %w", err)
+	}
+	fmt.Printf("Default poster %s created successfully!\n", defaultPosterPath)
+
+	// Generate subtitles asynchronously
+	go createSubtitleFile(uniqueID)
 
 	// Notify MQ system about the uploaded video
 	mq.Emit("postpics-uploaded")
 
-	// Return the highest resolution video path
 	return []string{highestResolutionPath}, nil
 }
 
-// func saveUploadedVideoFile(r *http.Request, formKey, fileType string) ([]string, error) {
-// 	files := r.MultipartForm.File[formKey]
-// 	if len(files) == 0 {
-// 		return nil, nil // No files to process
-// 	}
+// Saves the uploaded file to disk
+func saveFile(src io.Reader, dstPath string) error {
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
 
-// 	var savedPaths []string
-// 	for _, file := range files {
-// 		// Open uploaded file
-// 		src, err := file.Open()
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to open %s file: %w", fileType, err)
-// 		}
-// 		defer src.Close()
+	_, err = io.Copy(dst, src)
+	return err
+}
 
-// 		// Generate a unique file name
-// 		uniqueID := generateID(16)
-// 		sanitizedExt := ".jpg" // Default extension
-// 		if fileType == "video" {
-// 			sanitizedExt = ".mp4"
-// 		}
-// 		fileName := uniqueID + sanitizedExt
-// 		originalFilePath := filepath.Join(feedVideoUploadDir, fileName)
+// Processes video into a specific resolution using FFMPEG
+func processVideoResolution(inputPath, outputPath, size string) error {
+	cmd := exec.Command(
+		"ffmpeg", "-i", inputPath,
+		"-vf", fmt.Sprintf("scale=%s", size),
+		"-c:v", "libx264", "-crf", "23",
+		"-preset", "veryfast",
+		"-c:a", "aac", "-b:a", "128k",
+		"-movflags", "+faststart",
+		outputPath,
+	)
 
-// 		// Ensure upload directory exists
-// 		if err := os.MkdirAll(feedVideoUploadDir, 0755); err != nil {
-// 			return nil, fmt.Errorf("failed to create upload directory: %w", err)
-// 		}
+	return cmd.Run()
+}
 
-// 		// Save the original file
-// 		dst, err := os.Create(originalFilePath)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to save %s file: %w", fileType, err)
-// 		}
-// 		defer dst.Close()
+// Creates a poster (poster) from a video at 5 seconds
+func createPoster(videoPath, posterPath string) error {
+	cmd := exec.Command(
+		"ffmpeg", "-i", videoPath,
+		"-ss", "00:00:01", "-vframes", "1",
+		"-q:v", "2", posterPath,
+	)
+	return cmd.Run()
+}
 
-// 		if _, err := io.Copy(dst, src); err != nil {
-// 			return nil, fmt.Errorf("failed to write %s file: %w", fileType, err)
-// 		}
+// Creates a poster for specific resolutions
+func createVideoPoster(inputPath, outputPath string) error {
+	cmd := exec.Command(
+		"ffmpeg", "-i", inputPath,
+		"-ss", "00:00:01", "-vframes", "1",
+		"-q:v", "2", outputPath,
+	)
 
-// 		// If file type is video, create multiple resolutions
-// 		if fileType == "video" {
-// 			resolutions := []struct {
-// 				Label string
-// 				Size  string
-// 			}{
-// 				{"144p", "256x144"},
-// 				{"480p", "854x480"},
-// 				{"720p", "1280x720"},
-// 			}
-
-// 			for _, res := range resolutions {
-// 				outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, res.Label)
-// 				outputFilePath := filepath.Join(feedVideoUploadDir, outputFileName)
-
-// 				// Use FFMPEG to create the resolution
-// 				ffmpegCmd := exec.Command(
-// 					"ffmpeg",
-// 					"-i", originalFilePath,
-// 					"-vf", fmt.Sprintf("scale=%s", res.Size),
-// 					"-c:v", "libx264",
-// 					"-crf", "23",
-// 					"-preset", "veryfast",
-// 					"-c:a", "aac",
-// 					"-b:a", "128k",
-// 					"-movflags", "+faststart",
-// 					outputFilePath,
-// 				)
-
-// 				// Run the FFMPEG command
-// 				if err := ffmpegCmd.Run(); err != nil {
-// 					return nil, fmt.Errorf("failed to create %s video: %w", res.Label, err)
-// 				}
-
-// 				// Add relative path of the generated video to savedPaths
-// 				savedPaths = append(savedPaths, "/postpic/"+outputFileName)
-// 			}
-// 		} else {
-// 			// Add relative path of the original file to savedPaths
-// 			savedPaths = append(savedPaths, "/postpic/"+fileName)
-// 		}
-// 	}
-
-// 	// Notify MQ system about uploaded media
-// 	mq.Emit("postpics-uploaded")
-
-// 	return savedPaths, nil
-// }
+	return cmd.Run()
+}
 
 // saveUploadedFiles handles saving uploaded files and returns their paths
 func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, error) {
@@ -432,19 +373,19 @@ func createSubtitleFile(uniqueID string) {
 		{
 			Index:   1,
 			Start:   "00:00:00.000",
-			End:     "00:00:05.000",
-			Content: "Welcome to the tutorial!",
+			End:     "00:00:01.000",
+			Content: "Welcome to the video!",
 		},
 		{
 			Index:   2,
-			Start:   "00:00:06.000",
-			End:     "00:00:10.000",
+			Start:   "00:00:01.001",
+			End:     "00:00:02.000",
 			Content: "In this video, we'll learn how to create subtitles in Go.",
 		},
 		{
 			Index:   3,
-			Start:   "00:00:11.000",
-			End:     "00:00:15.000",
+			Start:   "00:00:02.001",
+			End:     "00:00:03.000",
 			Content: "Let's get started!",
 		},
 	}

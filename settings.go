@@ -12,42 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// // Middleware for JWT Authentication (stub)
-// func authMiddleware(next httprouter.Handle) httprouter.Handle {
-// 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 		claims, ok := r.Context().Value(userIDKey).(*Claims) // Assume Claims has been validated elsewhere
-// 		if !ok {
-// 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-// 			return
-// 		}
-// 		userID := claims.UserID
-// 		ctx := context.WithValue(r.Context(), userIDKey, userID)
-// 		next(w, r.WithContext(ctx), ps)
-// 	}
-// }
-
-// // Initialize default settings for a new user
-// func initializeSettings(userID string) error {
-
-// 	defaultSettings := []Setting{
-// 		{"theme", "Light", "User theme preference"},
-// 		{"notifications", true, "Enable notifications"},
-// 		{"privacy_mode", false, "Enable privacy mode"},
-// 		{"auto_logout", true, "Enable auto logout after inactivity"},
-// 		{"language", "English", "Preferred language"},
-// 		{"time_zone", "UTC", "Time zone preference"},
-// 		{"daily_reminder", "08:00", "Daily reminder time"},
-// 	}
-
-// 	userSettings := UserSettings{
-// 		UserID:   userID,
-// 		Settings: defaultSettings,
-// 	}
-
-// 	_, err := settingsCollection.InsertOne(context.TODO(), userSettings)
-// 	return err
-// }
-
 // Get user settings
 func initUserSettings(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	userID := r.Context().Value(userIDKey).(string)

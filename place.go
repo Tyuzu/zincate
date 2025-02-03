@@ -60,6 +60,8 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Capacity:    cap,
 		PlaceID:     generateID(14),
 		CreatedBy:   requestingUserID,
+		CreatedAt:   time.Now(),
+		// CreatedAt:   time.Now().Format(time.RFC3339),
 	}
 
 	// Handle banner file upload
@@ -74,8 +76,8 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 		// Validate MIME type (e.g., image/jpeg, image/png)
 		mimeType := header.Header.Get("Content-Type")
-		if mimeType != "image/jpeg" && mimeType != "image/png" {
-			http.Error(w, "Invalid banner file type. Only JPEG and PNG are allowed.", http.StatusBadRequest)
+		if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "image/webp" {
+			http.Error(w, "Invalid banner file type. Only JPEG, PNG and Webp are allowed.", http.StatusBadRequest)
 			return
 		}
 

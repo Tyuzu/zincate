@@ -42,33 +42,6 @@ func InitializeHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	w.WriteHeader(http.StatusOK)
 }
 
-// func InitializeHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 	var payload map[string]interface{}
-// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-// 		http.Error(w, "Invalid payload", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	requester := payload["requester"]
-// 	service := payload["service"]
-// 	action := payload["action"]
-
-// 	if requester == "register" {
-// 		userID := payload["userid"].(string)
-// 		initializeUserDefaults(userID)
-// 	} else if service == "event" {
-// 		userID := payload["userid"].(string)
-// 		eventID := payload["eventid"].(string)
-
-// 		if action == "create" {
-// 			handleEventCreation(userID, eventID)
-// 		} else if action == "delete" {
-// 			handleEventDeletion(userID, eventID)
-// 		}
-// 	}
-// 	w.WriteHeader(http.StatusOK)
-// }
-
 func initializeUserDefaults(userID string) {
 	// Create default documents in profiles, settings, and user_data
 	// Example: Insert default user profile into MongoDB

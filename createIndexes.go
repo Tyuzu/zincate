@@ -21,10 +21,10 @@ func CreateIndexes(client *mongo.Client) {
 	// Create indexes for collections
 	collectionsAndIndexes := map[*mongo.Collection][]mongo.IndexModel{
 		settingsCollection: {
-			{Keys: bson.D{{"key", 1}}}, // Example: Indexing the `key` field for settings
+			{Keys: bson.D{{Key: "key", Value: 1}}}, // Example: Indexing the `key` field for settings
 		},
 		reviewsCollection: {
-			{Keys: bson.D{{"event_id", 1}, {"user_id", 1}}}, // Compound index for event and user
+			{Keys: bson.D{{Key: "event_id", Value: 1}, {Key: "user_id", Value: 1}}}, // Compound index for event and user
 		},
 		// Add other collections and their indexes here
 	}
