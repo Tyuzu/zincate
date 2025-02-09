@@ -33,8 +33,8 @@ type contextKey string
 const userIDKey contextKey = "userId"
 
 var (
-	userCollection       *mongo.Collection
-	profilesCollection   *mongo.Collection
+	userCollection *mongo.Collection
+	// profilesCollection *mongo.Collection
 	userDataCollection   *mongo.Collection
 	ticketsCollection    *mongo.Collection
 	reviewsCollection    *mongo.Collection
@@ -95,7 +95,7 @@ func main() {
 	settingsCollection = client.Database("eventdb").Collection("settings")
 	reviewsCollection = client.Database("eventdb").Collection("reviews")
 	followingsCollection = client.Database("eventdb").Collection("followings")
-	profilesCollection = client.Database("eventdb").Collection("users")
+	// profilesCollection = client.Database("eventdb").Collection("users")
 	userCollection = client.Database("eventdb").Collection("users")
 	userDataCollection = client.Database("eventdb").Collection("userdata")
 	ticketsCollection = client.Database("eventdb").Collection("ticks")
@@ -127,7 +127,7 @@ func main() {
 	router.POST("/api/auth/logout", authenticate(logoutUser))
 	router.POST("/api/auth/token/refresh", rateLimit(authenticate(refreshToken)))
 
-	router.POST("/initialize", rateLimit(InitializeHandler))
+	// router.POST("/initialize", rateLimit(InitializeHandler))
 
 	router.GET("/api/events/events", rateLimit(GetEvents))
 	router.GET("/api/events/events/count", rateLimit(GetEventsCount))
@@ -191,6 +191,12 @@ func main() {
 	router.GET("/api/user/:username", rateLimit(getUserProfile))
 	router.GET("/api/user/:username/data", rateLimit(authenticate(getUserProfileData)))
 
+	router.PUT("/api/follows/:id", rateLimit(authenticate(ToggleFollow)))
+	router.DELETE("/api/follows/:id", rateLimit(authenticate(ToggleUnFollow)))
+	router.GET("/api/follows/:id/status", rateLimit(authenticate(DoesFollow)))
+	router.GET("/api/followers/:id", rateLimit(authenticate(GetFollowers)))
+	router.GET("/api/following/:id", rateLimit(authenticate(GetFollowing)))
+
 	router.GET("/api/feed/feed", authenticate(GetPosts))
 	router.GET("/api/feed/post/:postid", authenticate(GetPost))
 	router.POST("/api/feed/post", rateLimit(authenticate(CreateTweetPost)))
@@ -203,42 +209,10 @@ func main() {
 	router.PUT("/api/blog/post/:postid", authenticate(EditBlogPost))
 	router.DELETE("/api/blog/post/:postid", authenticate(DeleteBlogPost))
 
-	// router.PUT("/api/follows/:id", rateLimit(authenticate(ToggleFollow)))
-	// router.DELETE("/api/follows/:id", rateLimit(authenticate(ToggleUnFollow)))
-	// router.GET("/api/follows/:id/status", rateLimit(authenticate(DoesFollow)))
-	// router.GET("/api/followers/:id", rateLimit(authenticate(GetFollowers)))
-	// router.GET("/api/following/:id", rateLimit(authenticate(GetFollowing)))
-
 	router.GET("/api/settings/init/:userid", authenticate(initUserSettings))
 	// router.GET("/api/settings/setting/:type", getUserSettings)
 	router.GET("/api/settings/all", rateLimit(authenticate(getUserSettings)))
 	router.PUT("/api/settings/setting/:type", rateLimit(authenticate(updateUserSetting)))
-
-	// router.GET("/api/gigs/gigs", rateLimit(GetGigs))
-	// router.POST("/api/gigs/gig", authenticate(CreateGig))
-	// router.GET("/api/gigs/gig/:gigid", GetGig)
-	// router.PUT("/api/gigs/gig/:gigid", authenticate(EditGig))
-	// router.DELETE("/api/gigs/gig/:gigid", authenticate(DeleteGig))
-
-	// router.GET("/api/business/businesses", rateLimit(GetBusinesses))
-	// router.POST("/api/business/business", authenticate(AddBusinessHandler))
-	// router.GET("/api/business/business/:id", GetBusinessHandler)
-	// router.POST("/api/business/business/:id/book", authenticate(BookSlotHandler))
-	// router.GET("/api/business/business/:id/menu", GetMenuHandler)
-	// router.GET("/api/business/business/:id/promotions", GetPromotionsHandler)
-
-	// // Define business-side routes
-	// router.POST("/api/owner/register", authenticate(RegisterOwnerHandler))
-	// router.POST("/api/owner/login", authenticate(LoginOwnerHandler))
-	// router.POST("/api/owner/business", authenticate(AddBusinessByOwnerHandler))
-	// router.PUT("/api/owner/business/:id", authenticate(UpdateBusinessHandler))
-	// router.DELETE("/api/owner/business/:id", authenticate(DeleteBusinessHandler))
-	// router.POST("/api/owner/business/:id/menu", authenticate(AddOrUpdateMenuHandler))
-	// router.DELETE("/api/owner/business/:id/menu/:itemId", authenticate(DeleteMenuItemHandler))
-	// router.POST("/api/owner/business/:id/promotions", authenticate(AddPromotionHandler))
-	// router.DELETE("/api/owner/business/:id/promotions/:promoId", authenticate(DeletePromotionHandler))
-	// router.GET("/api/owner/business/:id/bookings", ViewBookingsHandler)
-	// router.DELETE("/api/owner/business/:id/bookings/:bookingId", authenticate(CancelBookingHandler))
 
 	router.GET("/api/sda/sda", rateLimit(authenticate(GetAds)))
 

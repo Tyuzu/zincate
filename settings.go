@@ -16,7 +16,7 @@ import (
 func initUserSettings(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	userID := r.Context().Value(userIDKey).(string)
 	if ps.ByName("userid") == userID {
-		initializeSettings(userID)
+		// initializeSettings(userID)
 		a, _ := json.Marshal(true)
 		fmt.Fprint(w, string(a))
 	}

@@ -169,7 +169,8 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	// go CreatePreferences(w, r, ps)
 
-	initializeUserDefaults(user.UserID)
+	// initializeUserDefaults(user.UserID)
+	createFollowEntry(user.UserID)
 
 	// Respond with success
 	w.WriteHeader(http.StatusCreated)

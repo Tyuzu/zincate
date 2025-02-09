@@ -15,8 +15,9 @@ import (
 )
 
 func suggestFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	claims, ok := r.Context().Value(userIDKey).(*Claims)
-	if !ok || claims.UserID == "" {
+	currentUserID := r.URL.Query().Get("userid")
+	userID, ok := r.Context().Value(userIDKey).(string)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -34,24 +35,31 @@ func suggestFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 
 	skip := (page - 1) * limit
 
-	// Fetch the current user's follows from the followings collection
+	// Fetch the list of users the current user follows
 	var followData UserFollow
-	err = followingsCollection.FindOne(context.TODO(), bson.M{"userid": claims.UserID}).Decode(&followData)
+	err = followingsCollection.FindOne(context.TODO(), bson.M{"userid": userID}).Decode(&followData)
 	if err != nil && err != mongo.ErrNoDocuments {
 		http.Error(w, "Failed to fetch follow data", http.StatusInternalServerError)
 		return
 	}
 
-	// Construct the exclusion filter for already followed users and the current user
-	excludedUserIDs := append(followData.Follows, claims.UserID)
+	fmt.Println("::--::--::--::")
+	// Exclude already followed users + current user
+	excludedUserIDs := append(followData.Follows, userID, currentUserID)
+	// excludedUserIDs := []string{userID}
 
-	// Query for suggested users excluding the current user and already followed users
+	// Query for suggested users excluding already followed ones
 	filter := bson.M{"userid": bson.M{"$nin": excludedUserIDs}}
 	options := options.Find().
 		SetSkip(int64(skip)).
-		SetLimit(int64(limit))
+		SetLimit(int64(limit)).
+		SetProjection(bson.M{
+			"userid":   1,
+			"username": 1,
+			"bio":      1,
+		})
 
-	cursor, err := followingsCollection.Find(context.TODO(), filter, options)
+	cursor, err := userCollection.Find(context.TODO(), filter, options)
 	if err != nil {
 		http.Error(w, "Failed to fetch suggestions", http.StatusInternalServerError)
 		return
@@ -59,17 +67,31 @@ func suggestFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 	defer cursor.Close(context.TODO())
 
 	// Collect suggested users
-	suggestedUsers := []UserSuggest{}
+	var suggestedUsers []UserSuggest
 	for cursor.Next(context.TODO()) {
 		var suggestedUser UserSuggest
 		if err := cursor.Decode(&suggestedUser); err == nil {
-			suggestedUsers = append(suggestedUsers, suggestedUser)
+			// Add `is_following: false` explicitly
+			suggestedUsers = append(suggestedUsers, UserSuggest{
+				UserID:   suggestedUser.UserID,
+				Username: suggestedUser.Username,
+				Bio:      suggestedUser.Bio,
+			})
 		}
 	}
 
-	// Return the suggested users or an empty list if none are found
+	fmt.Println("::--::--::--::")
+
+	// createFollowEntry(userID)
+
+	if len(suggestedUsers) == 0 {
+		suggestedUsers = []UserSuggest{}
+	}
+	// Set response headers and send JSON response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(suggestedUsers)
+	if err := json.NewEncoder(w).Encode(suggestedUsers); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 /***************************************************/
@@ -110,7 +132,9 @@ func suggestionsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Par
 		return
 	}
 	log.Println("handler sugg : ", suggestions)
-
+	if len(suggestions) == 0 {
+		suggestions = []Suggestion{}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(suggestions)

@@ -6,22 +6,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type Activity struct {
-	Username     string              `json:"username,omitempty" bson:"username,omitempty"`
-	PlaceID      string              `json:"placeId,omitempty" bson:"placeId,omitempty"`
-	Action       string              `json:"action,omitempty" bson:"action,omitempty"`
-	PerformedBy  string              `json:"performedBy,omitempty" bson:"performedBy,omitempty"`
-	Timestamp    time.Time           `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
-	Details      string              `json:"details,omitempty" bson:"details,omitempty"`
-	IPAddress    string              `json:"ipAddress,omitempty" bson:"ipAddress,omitempty"`
-	DeviceInfo   string              `json:"deviceInfo,omitempty" bson:"deviceInfo,omitempty"`
-	ID           primitive.ObjectID  `json:"id" bson:"_id,omitempty"`
-	UserID       primitive.ObjectID  `json:"user_id" bson:"user_id"`
-	ActivityType string              `json:"activity_type" bson:"activity_type"` // e.g., "follow", "review", "buy"
-	EntityID     *primitive.ObjectID `json:"entity_id,omitempty" bson:"entity_id,omitempty"`
-	EntityType   *string             `json:"entity_type,omitempty" bson:"entity_type,omitempty"` // "event", "place", or null
-}
-
 type User struct {
 	// ID          string    `json:"-" bson:"_id,omitempty"`
 	UserID         string            `json:"userid" bson:"userid"`
@@ -44,6 +28,8 @@ type User struct {
 	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
 	IsVerified     bool              `json:"is_verified" bson:"is_verified"`
 	PasswordHash   string            `json:"password_hash" bson:"password_hash"`
+	Followerscount int               `json:"followerscount" bson:"followerscount"`
+	Followcount    int               `json:"followscount" bson:"followscount"`
 }
 
 // UserProfileResponse defines the structure for the user profile response
@@ -56,8 +42,8 @@ type UserProfileResponse struct {
 	ProfilePicture string            `json:"profile_picture" bson:"profile_picture"`
 	BannerPicture  string            `json:"banner_picture" bson:"banner_picture"`
 	IsFollowing    bool              `json:"is_following" bson:"is_following"` // Added here
-	Followers      int               `json:"followers" bson:"followers"`
-	Follows        int               `json:"follows" bson:"follows"`
+	Followerscount int               `json:"followerscount" bson:"followerscount"`
+	Followcount    int               `json:"followscount" bson:"followscount"`
 	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
 }
 
@@ -73,126 +59,6 @@ type UserData struct {
 	EntityType string `json:"entity_type" bson:"entity_type"`
 	CreatedAt  string `json:"created_at" bson:"created_at"`
 }
-
-// type UserContent struct {
-// 	Places      []string `json:"places" bson:"places"`
-// 	Events      []string `json:"events" bson:"events"`
-// 	Posts       []string `json:"posts" bson:"posts"`
-// 	Media       []string `json:"media" bson:"media"`
-// 	Blogs       []string `json:"blogs" bson:"blogs"`
-// 	Collections []string `json:"collections" bson:"collections"`
-// }
-
-// type UserActivity struct {
-// 	Tickets    []ContentActivity `json:"tickets" bson:"tickets"`
-// 	Merch      []ContentActivity `json:"merch" bson:"merch"`
-// 	Reviews    []ContentActivity `json:"reviews" bson:"reviews"`
-// 	Comments   []ContentActivity `json:"comments" bson:"comments"`
-// 	Likes      []ContentActivity `json:"likes" bson:"likes"`
-// 	Favourites []ContentActivity `json:"favourites" bson:"favourites"`
-// 	Bookings   []ContentActivity `json:"bookings" bson:"bookings"`
-// }
-
-// const (
-// 	EntityTypeEvent = "event"
-// 	EntityTypePlace = "place"
-// 	EntityTypeMedia = "media"
-// 	EntityTypeMerch = "merch"
-// )
-
-// type UserActivity struct {
-// 	Tickets    []TicketType     `json:"tickets" bson:"tickets"`
-// 	Merch      []MerchType      `json:"merch" bson:"merch"`
-// 	Reviews    []ReviewType     `json:"reviews" bson:"reviews"`
-// 	Comments   []string         `json:"comments" bson:"comments"` // Assuming IDs
-// 	Likes      []LikeEntityType `json:"likes" bson:"likes"`
-// 	Favourites []Favourite      `json:"favourites" bson:"favourites"`
-// 	Bookings   []BookingType    `json:"bookings" bson:"bookings"`
-// }
-
-// type TicketType string
-
-// const (
-// 	VIP       TicketType = "vip"
-// 	Standard  TicketType = "standard"
-// 	EarlyBird TicketType = "early_bird"
-// )
-
-// type MerchType string
-
-// const (
-// 	TShirt MerchType = "tshirt"
-// 	Mug    MerchType = "mug"
-// 	Poster MerchType = "poster"
-// )
-
-// type ReviewType string
-
-// const (
-// 	Positive ReviewType = "positive"
-// 	Negative ReviewType = "negative"
-// 	Neutral  ReviewType = "neutral"
-// )
-
-// type LikeEntityType string
-
-// const (
-// 	Event LikeEntityType = "event"
-// 	Post  LikeEntityType = "post"
-// 	Media LikeEntityType = "media"
-// )
-
-// type BookingType string
-
-// const (
-// 	Hotel          BookingType = "hotel"
-// 	Event          BookingType = "event"
-// 	Transportation BookingType = "transportation"
-// )
-
-// type UserActivity struct {
-// 	Tickets  []string `json:"tickets" bson:"tickets"`
-// 	Merch    []string `json:"merch" bson:"merch"`
-// 	Reviews  []string `json:"reviews" bson:"reviews"`
-// 	Comments []string `json:"comments" bson:"comments"`
-// 	Likes      []string    `json:"likes" bson:"likes"`
-// 	Favourites []Favourite `json:"favourites" bson:"favourites"`
-// 	Bookings []string `json:"bookings" bson:"bookings"`
-// }
-
-// type Favourite struct {
-// 	EntityID   string        `json:"entity_id" bson:"entity_id"`
-// 	EntityType FavEntityType `json:"entity_type" bson:"entity_type"`
-// }
-
-// type FavEntityType string
-
-// const (
-// 	EVENT FavEntityType = "event"
-// 	PLACE FavEntityType = "place"
-// 	MERCH FavEntityType = "merch"
-// 	MEDIA FavEntityType = "media"
-// )
-
-// type User struct {
-// 	// ID          string    `json:"-" bson:"_id,omitempty"`
-// 	UserID       string    `json:"userid" bson:"userid"`
-// 	Username     string    `json:"username" bson:"username"`
-// 	Email        string    `json:"email" bson:"email"`
-// 	Password     string    `json:"-" bson:"password"`
-// 	Role         string    `json:"role" bson:"role"`
-// 	Name         string    `json:"name,omitempty" bson:"name,omitempty"`
-// 	CreatedAt    time.Time `json:"created_at" bson:"created_at"`
-// 	UpdatedAt    time.Time `json:"updated_at" bson:"updated_at"`
-// 	PhoneNumber  string    `json:"phone_number,omitempty" bson:"phone_number,omitempty"`
-// 	IsActive     bool      `json:"is_active" bson:"is_active"`
-// 	LastLogin    time.Time `json:"last_login,omitempty" bson:"last_login,omitempty"`
-// 	ProfileViews int       `json:"profile_views,omitempty" bson:"profile_views,omitempty"`
-// 	Address      string    `json:"address,omitempty" bson:"address,omitempty"`
-// 	DateOfBirth  time.Time `json:"date_of_birth,omitempty" bson:"date_of_birth,omitempty"`
-// 	IsVerified   bool      `json:"is_verified" bson:"is_verified"`
-// 	PasswordHash string    `json:"password_hash" bson:"password_hash"`
-// }
 
 type Response struct {
 	Message string      `json:"message,omitempty"`
@@ -246,6 +112,22 @@ type BlogPost struct {
 	CreatedAt time.Time            `json:"created_at" bson:"created_at"`
 }
 
+type Activity struct {
+	Username     string              `json:"username,omitempty" bson:"username,omitempty"`
+	PlaceID      string              `json:"placeId,omitempty" bson:"placeId,omitempty"`
+	Action       string              `json:"action,omitempty" bson:"action,omitempty"`
+	PerformedBy  string              `json:"performedBy,omitempty" bson:"performedBy,omitempty"`
+	Timestamp    time.Time           `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
+	Details      string              `json:"details,omitempty" bson:"details,omitempty"`
+	IPAddress    string              `json:"ipAddress,omitempty" bson:"ipAddress,omitempty"`
+	DeviceInfo   string              `json:"deviceInfo,omitempty" bson:"deviceInfo,omitempty"`
+	ID           primitive.ObjectID  `json:"id" bson:"_id,omitempty"`
+	UserID       primitive.ObjectID  `json:"user_id" bson:"user_id"`
+	ActivityType string              `json:"activity_type" bson:"activity_type"` // e.g., "follow", "review", "buy"
+	EntityID     *primitive.ObjectID `json:"entity_id,omitempty" bson:"entity_id,omitempty"`
+	EntityType   *string             `json:"entity_type,omitempty" bson:"entity_type,omitempty"` // "event", "place", or null
+}
+
 type Merch struct {
 	MerchID     string             `json:"merchid" bson:"merchid"`
 	EventID     string             `json:"eventid" bson:"eventid"` // Reference to Event ID
@@ -290,11 +172,9 @@ type Seat struct {
 
 // UserProfileResponse defines the structure for the user profile response
 type UserSuggest struct {
-	UserID         string `json:"userid" bson:"userid"`
-	Username       string `json:"username" bson:"username"`
-	Bio            string `json:"bio,omitempty" bson:"bio,omitempty"`
-	ProfilePicture string `json:"profile_picture" bson:"profile_picture"`
-	IsFollowing    bool   `json:"is_following" bson:"is_following"` // Added here
+	UserID   string `json:"userid" bson:"userid"`
+	Username string `json:"username" bson:"username"`
+	Bio      string `json:"bio,omitempty" bson:"bio,omitempty"`
 }
 
 type Suggestion struct {
@@ -512,32 +392,6 @@ type FAQ struct {
 	Question string `json:"question" bson:"question"`
 	Answer   string `json:"answer" bson:"answer"`
 }
-
-// type Event struct {
-// 	EventID           string                 `json:"eventid" bson:"eventid"`
-// 	Title             string                 `json:"title" bson:"title"`
-// 	Description       string                 `json:"description" bson:"description"`
-// 	Place             string                 `json:"place" bson:"place"`
-// 	Date              string                 `json:"date" bson:"date"`
-// 	Location          string                 `json:"location" bson:"location"`
-// 	CreatorID         string                 `json:"creatorid" bson:"creatorid"`
-// 	OrganizerName     string                 `json:"organizer_name" bson:"organizer_name"`
-// 	OrganizerContact  string                 `json:"organizer_contact" bson:"organizer_contact"`
-// 	Tickets           []Ticket               `json:"tickets" bson:"tickets"`
-// 	Merch             []Merch                `json:"merch" bson:"merch"`
-// 	StartDateTime     time.Time              `json:"start_date_time" bson:"start_date_time"`
-// 	EndDateTime       time.Time              `json:"end_date_time" bson:"end_date_time"`
-// 	Category          string                 `json:"category" bson:"category"`
-// 	BannerImage       string                 `json:"banner_image" bson:"banner_image"`
-// 	WebsiteURL        string                 `json:"website_url" bson:"website_url"`
-// 	Status            string                 `json:"status" bson:"status"`
-// 	AccessibilityInfo string                 `json:"accessibility_info" bson:"accessibility_info"`
-// 	SocialMediaLinks  []string               `json:"social_links" bson:"social_links"`
-// 	Tags              []string               `json:"tags" bson:"tags"`
-// 	CustomFields      map[string]interface{} `json:"custom_fields" bson:"custom_fields"`
-// 	CreatedAt         time.Time              `json:"created_at" bson:"created_at"`
-// 	UpdatedAt         time.Time              `json:"updated_at" bson:"updated_at"`
-// }
 
 type Gig struct {
 	CreatorID string    `json:"creator_id" bson:"creator_id"` // ID of the user who created the gig
