@@ -88,21 +88,21 @@ func addReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	entityType := ps.ByName("entityType")
 	entityId := ps.ByName("entityId")
 
-	// count, err := reviewsCollection.CountDocuments(context.TODO(), bson.M{
-	// 	"userId":     userId,
-	// 	"entityType": entityType,
-	// 	"entityId":   entityId,
-	// })
-	// if err != nil {
-	// 	log.Printf("Error checking for existing review: %v", err)
-	// 	http.Error(w, "Internal server error", http.StatusInternalServerError)
-	// 	return
-	// }
+	count, err := reviewsCollection.CountDocuments(context.TODO(), bson.M{
+		"userId":     userId,
+		"entityType": entityType,
+		"entityId":   entityId,
+	})
+	if err != nil {
+		log.Printf("Error checking for existing review: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
-	// if count > 0 {
-	// 	http.Error(w, "You have already reviewed this entity", http.StatusConflict)
-	// 	return
-	// }
+	if count > 0 {
+		http.Error(w, "You have already reviewed this entity", http.StatusConflict)
+		return
+	}
 
 	var review Review
 	if err := json.NewDecoder(r.Body).Decode(&review); err != nil || review.Rating < 1 || review.Rating > 5 || review.Comment == "" {

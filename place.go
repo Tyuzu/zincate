@@ -74,10 +74,15 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if bannerFile != nil {
 		defer bannerFile.Close()
 
-		// Validate MIME type (e.g., image/jpeg, image/png)
-		mimeType := header.Header.Get("Content-Type")
-		if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "image/webp" {
-			http.Error(w, "Invalid banner file type. Only JPEG, PNG and Webp are allowed.", http.StatusBadRequest)
+		// // Validate MIME type (e.g., image/jpeg, image/png)
+		// mimeType := header.Header.Get("Content-Type")
+		// if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "image/webp" {
+		// 	http.Error(w, "Invalid banner file type. Only JPEG, PNG and Webp are allowed.", http.StatusBadRequest)
+		// 	return
+		// }
+
+		if !validateImageFileType(w, header) {
+			http.Error(w, "Invalid banner file type. Only jpeg, png, webp, gif, bmp, tiff are allowed.", http.StatusBadRequest)
 			return
 		}
 
@@ -269,10 +274,15 @@ func editPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	if bannerFile != nil {
 		defer bannerFile.Close()
 
-		// Validate MIME type
-		mimeType := header.Header.Get("Content-Type")
-		if mimeType != "image/jpeg" && mimeType != "image/png" {
-			http.Error(w, "Invalid banner file type. Only JPEG and PNG are allowed.", http.StatusBadRequest)
+		// // Validate MIME type
+		// mimeType := header.Header.Get("Content-Type")
+		// if mimeType != "image/jpeg" && mimeType != "image/png" {
+		// 	http.Error(w, "Invalid banner file type. Only JPEG and PNG are allowed.", http.StatusBadRequest)
+		// 	return
+		// }
+
+		if !validateImageFileType(w, header) {
+			http.Error(w, "Invalid banner file type. Only jpeg, png, webp, gif, bmp, tiff are allowed.", http.StatusBadRequest)
 			return
 		}
 

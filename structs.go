@@ -36,6 +36,7 @@ type User struct {
 type UserProfileResponse struct {
 	UserID         string            `json:"userid" bson:"userid"`
 	Username       string            `json:"username" bson:"username"`
+	Name           string            `json:"name" bson:"name"`
 	Email          string            `json:"email" bson:"email"`
 	Bio            string            `json:"bio,omitempty" bson:"bio,omitempty"`
 	PhoneNumber    string            `json:"phone_number,omitempty" bson:"phone_number,omitempty"`

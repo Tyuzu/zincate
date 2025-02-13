@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -196,6 +197,7 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 		"data":    newPost,
 	})
 }
+
 func saveUploadedVideoFile(r *http.Request, formKey string) ([]string, error) {
 	files := r.MultipartForm.File[formKey]
 	if len(files) == 0 {
@@ -316,7 +318,6 @@ func createVideoPoster(inputPath, outputPath string) error {
 	return cmd.Run()
 }
 
-// saveUploadedFiles handles saving uploaded files and returns their paths
 func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, error) {
 	files := r.MultipartForm.File[formKey]
 	if len(files) == 0 {
@@ -332,37 +333,45 @@ func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, err
 		}
 		defer src.Close()
 
+		// Decode the image directly from the file stream
+		img, err := imaging.Decode(src)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode image: %w", err)
+		}
+
 		// Generate a unique file name
 		uniqueID := generateID(16)
-		// ext := filepath.Ext(file.Filename)
-		sanitizedExt := ".jpg" // Default extension
-		if fileType == "video" {
-			sanitizedExt = ".mp4"
-		}
-		fileName := uniqueID + sanitizedExt
-		dstFilePath := filepath.Join(feedVideoUploadDir, fileName)
+		fileName := uniqueID + ".jpg" // Default extension
 
-		// Ensure upload directory exists
-		if err := os.MkdirAll(feedVideoUploadDir, 0755); err != nil {
+		// Define original and thumbnail paths (Ensure forward slashes for JSON)
+		originalPath := filepath.ToSlash(filepath.Join("./postpic", fileName))
+		thumbnailPath := filepath.ToSlash(filepath.Join("./postpic/thumb", fileName))
+
+		// Ensure upload directories exist
+		if err := os.MkdirAll(filepath.Dir(originalPath), 0755); err != nil {
 			return nil, fmt.Errorf("failed to create upload directory: %w", err)
 		}
-
-		// Save the file
-		dst, err := os.Create(dstFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to save %s file: %w", fileType, err)
-		}
-		defer dst.Close()
-
-		if _, err := io.Copy(dst, src); err != nil {
-			return nil, fmt.Errorf("failed to write %s file: %w", fileType, err)
+		if err := os.MkdirAll(filepath.Dir(thumbnailPath), 0755); err != nil {
+			return nil, fmt.Errorf("failed to create thumbnail directory: %w", err)
 		}
 
-		// Add relative path to media paths
-		savedPaths = append(savedPaths, "/postpic/"+fileName)
+		// Save original image
+		if err := imaging.Save(img, originalPath); err != nil {
+			return nil, fmt.Errorf("failed to save original image: %w", err)
+		}
+
+		// Create and save thumbnail (resize while keeping aspect ratio)
+		thumbImg := imaging.Resize(img, 720, 0, imaging.Lanczos)
+		if err := imaging.Save(thumbImg, thumbnailPath); err != nil {
+			return nil, fmt.Errorf("failed to save thumbnail: %w", err)
+		}
+
+		// Store only the thumbnail path in savedPaths
+		savedPaths = append(savedPaths, originalPath)
 	}
 
 	mq.Emit("postpics-uploaded")
+	mq.Emit("thumbnail-created")
 
 	return savedPaths, nil
 }

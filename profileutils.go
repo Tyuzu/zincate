@@ -11,9 +11,9 @@ import (
 )
 
 // createThumbnail creates a thumbnail of the image at inputPath and saves it at outputPath.
-func createThumbnail(inputPath, outputPath string) error {
-	width := 100
-	height := 100
+func createThumbnail(inputPath, outputPath string, width, height int) error {
+	// width := 100
+	// height := 100
 
 	img, err := imaging.Open(inputPath)
 	if err != nil {
@@ -108,7 +108,7 @@ func updateProfilePictures(w http.ResponseWriter, r *http.Request, claims *Claim
 		return nil, fmt.Errorf("error writing the file: %w", err)
 	}
 	thumbPath := "./userpic/thumb/" + claims.UserID + ".jpg"
-	createThumbnail(filePath, thumbPath)
+	createThumbnail(filePath, thumbPath, 100, 100)
 
 	update["profile_picture"] = claims.Username + ".jpg"
 

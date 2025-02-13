@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"naevis/mq"
 	"naevis/stripe"
@@ -44,14 +45,35 @@ func CreateTicketPaymentSession(w http.ResponseWriter, r *http.Request, ps httpr
 	ticketId := ps.ByName("ticketid")
 	eventId := ps.ByName("eventid")
 
-	// Parse request body for quantity
+	// Ensure Content-Type is application/json
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Invalid Content-Type, expected application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	// Read request body safely
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close() // Close body after reading
+
+	// Debugging: Print raw request body
+	fmt.Println("Raw Body:", string(bodyBytes))
+
+	// Parse request body into struct
 	var body struct {
 		Quantity int `json:"quantity"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Quantity < 1 {
+
+	if err := json.Unmarshal(bodyBytes, &body); err != nil || body.Quantity < 1 {
+		fmt.Println("Error decoding JSON:", err)
 		http.Error(w, "Invalid request or quantity", http.StatusBadRequest)
 		return
 	}
+
+	fmt.Printf("Decoded Body: %+v\n", body) // Debugging
 
 	// Generate a Stripe payment session
 	session, err := stripe.CreateTicketSession(ticketId, eventId, body.Quantity)
@@ -61,19 +83,17 @@ func CreateTicketPaymentSession(w http.ResponseWriter, r *http.Request, ps httpr
 		return
 	}
 
-	// Respond with the session URL
-	dataResponse := map[string]interface{}{
-		"paymentUrl": session.URL,
-		"eventid":    session.EventID,
-		"ticketid":   session.TicketID,
-		"quantity":   session.Quantity,
-	}
-
-	// Respond with the session URL
+	// Respond with session details
 	response := map[string]interface{}{
 		"success": true,
-		"data":    dataResponse,
+		"data": map[string]interface{}{
+			"paymentUrl": session.URL,
+			"eventid":    session.EventID,
+			"ticketid":   session.TicketID,
+			"quantity":   session.Quantity,
+		},
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

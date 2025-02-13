@@ -43,6 +43,7 @@ func getUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 		UserID:         user.UserID,
 		Username:       user.Username,
 		Email:          user.Email,
+		Name:           user.Name,
 		Bio:            user.Bio,
 		ProfilePicture: user.ProfilePicture,
 		BannerPicture:  user.BannerPicture,
@@ -192,6 +193,9 @@ func updateProfileFields(w http.ResponseWriter, r *http.Request, claims *Claims)
 	}
 	if bio := r.FormValue("bio"); bio != "" {
 		update["bio"] = bio
+	}
+	if name := r.FormValue("name"); name != "" {
+		update["name"] = name
 	}
 	if phoneNumber := r.FormValue("phone"); phoneNumber != "" {
 		update["phone_number"] = phoneNumber

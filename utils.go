@@ -7,6 +7,8 @@ import (
 	rndm "math/rand"
 	"net/http"
 
+	"mime/multipart"
+
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -76,4 +78,26 @@ func sendJSONResponse(w http.ResponseWriter, status int, response interface{}) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+// List of supported image MIME types
+var supportedImageTypes = map[string]bool{
+	"image/jpeg":    true,
+	"image/png":     true,
+	"image/webp":    true,
+	"image/gif":     true,
+	"image/bmp":     true,
+	"image/tiff":    true,
+	"image/svg+xml": true,
+}
+
+func validateImageFileType(w http.ResponseWriter, header *multipart.FileHeader) bool {
+	mimeType := header.Header.Get("Content-Type")
+
+	if !supportedImageTypes[mimeType] {
+		http.Error(w, "Invalid file type. Supported formats: JPEG, PNG, WebP, GIF, BMP, TIFF, SVG.", http.StatusBadRequest)
+		return false
+	}
+
+	return true
 }
