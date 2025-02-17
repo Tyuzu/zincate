@@ -156,7 +156,8 @@ func main() {
 	router.POST("/api/ticket/event/:eventid/:ticketid/payment-session", authenticate(CreateTicketPaymentSession))
 	router.GET("/api/events/event/:eventid/updates", EventUpdates)
 	router.POST("/api/seats/event/:eventid/:ticketid", rateLimit(authenticate(bookSeats)))
-	router.POST("/api/ticket/confirm-purchase", authenticate(ConfirmTicketPurchase))
+	// router.POST("/api/ticket/confirm-purchase", authenticate(ConfirmTicketPurchase))
+	router.POST("/api/ticket/event/:eventid/:ticketid/confirm-purchase", authenticate(ConfirmTicketPurchase))
 
 	router.GET("/api/suggestions/places", rateLimit(suggestionsHandler))
 	router.GET("/api/suggestions/follow", authenticate(suggestFollowers))

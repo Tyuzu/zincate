@@ -111,13 +111,13 @@ func getProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	// Check Redis cache
-	cachedProfile, err := GetCachedProfile(claims.Username)
-	if err == nil && cachedProfile != "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(cachedProfile))
-		return
-	}
+	// // Check Redis cache
+	// cachedProfile, err := GetCachedProfile(claims.Username)
+	// if err == nil && cachedProfile != "" {
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.Write([]byte(cachedProfile))
+	// 	return
+	// }
 
 	// Retrieve follow data
 	userFollow, err := GetUserFollowData(claims.UserID)

@@ -89,10 +89,11 @@ type Post struct {
 	Timestamp string   `bson:"timestamp" json:"timestamp"`
 	Likes     int      `bson:"likes" json:"likes"`
 	// ID         primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
-	Content   string               `json:"content" bson:"content"`
-	MediaURL  string               `json:"media_url,omitempty" bson:"media_url,omitempty"`
-	Likers    []primitive.ObjectID `json:"likers" bson:"likers"`
-	CreatedAt time.Time            `json:"created_at" bson:"created_at"`
+	Content     string               `json:"content" bson:"content"`
+	MediaURL    []string             `json:"media_url,omitempty" bson:"media_url,omitempty"`
+	Likers      []primitive.ObjectID `json:"likers" bson:"likers"`
+	CreatedAt   time.Time            `json:"created_at" bson:"created_at"`
+	Resolutions []int                `json:"resolution" bson:"resolution"`
 }
 
 type BlogPost struct {
@@ -173,9 +174,10 @@ type Seat struct {
 
 // UserProfileResponse defines the structure for the user profile response
 type UserSuggest struct {
-	UserID   string `json:"userid" bson:"userid"`
-	Username string `json:"username" bson:"username"`
-	Bio      string `json:"bio,omitempty" bson:"bio,omitempty"`
+	UserID      string `json:"userid" bson:"userid"`
+	Username    string `json:"username" bson:"username"`
+	IsFollowing bool
+	Bio         string `json:"bio,omitempty" bson:"bio,omitempty"`
 }
 
 type Suggestion struct {

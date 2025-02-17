@@ -82,13 +82,12 @@ func sendJSONResponse(w http.ResponseWriter, status int, response interface{}) {
 
 // List of supported image MIME types
 var supportedImageTypes = map[string]bool{
-	"image/jpeg":    true,
-	"image/png":     true,
-	"image/webp":    true,
-	"image/gif":     true,
-	"image/bmp":     true,
-	"image/tiff":    true,
-	"image/svg+xml": true,
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/webp": true,
+	"image/gif":  true,
+	"image/bmp":  true,
+	"image/tiff": true,
 }
 
 func validateImageFileType(w http.ResponseWriter, header *multipart.FileHeader) bool {

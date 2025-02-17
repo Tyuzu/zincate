@@ -3,16 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
+	"log"
 	"naevis/mq"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"time"
 
-	"github.com/disintegration/imaging"
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -110,13 +105,11 @@ func GetPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 }
 
-// Directory to store uploaded images/videos
-const feedVideoUploadDir = "./postpic/"
-
 func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
 	claims, err := validateJWT(tokenString)
 	if err != nil {
+		log.Printf("JWT validation error: %v", err) // Log the error for debugging
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -128,8 +121,6 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	}
 
 	userid := claims.UserID
-
-	// username, _ := RdxHget("users", userid)
 	username := claims.Username
 
 	// Extract post content and type
@@ -154,38 +145,51 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	}
 
 	var mediaPaths []string
-	// var err error
+	var mediaNames []string
+	var mediaRes []int
+
+	// if postType == "text" && len(postText) == 0 {
+	// 	http.Error(w, "Text post must have content", http.StatusBadRequest)
+	// 	return
+	// }
+
 	// Handle different post types
 	switch postType {
 	case "image":
-		mediaPaths, err = saveUploadedFiles(r, "images", "image")
+		mediaPaths, mediaNames, err = saveUploadedFiles(r, "images", "image")
 		if err != nil {
 			http.Error(w, "Failed to upload images: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if len(mediaPaths) == 0 && len(mediaNames) == 0 {
+			http.Error(w, "No media uploaded", http.StatusBadRequest)
+			return
+		}
+
 	case "video":
-		mediaPaths, err = saveUploadedVideoFile(r, "videos")
+		mediaRes, mediaPaths, mediaNames, err = saveUploadedVideoFile(r, "videos")
 		if err != nil {
 			http.Error(w, "Failed to upload videos: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if len(mediaPaths) == 0 && len(mediaNames) == 0 {
+			http.Error(w, "No media uploaded", http.StatusBadRequest)
+			return
+		}
 	}
 
+	newPost.Resolutions = mediaRes // Store only available resolutions
+	newPost.MediaURL = mediaNames
 	newPost.Media = mediaPaths
 
 	// Save post in the database
-	// postsCollection := client.Database("eventdb").Collection("posts")
-	// insertResult, err := postsCollection.InsertOne(context.TODO(), newPost)
 	_, err = postsCollection.InsertOne(context.TODO(), newPost)
 	if err != nil {
 		http.Error(w, "Failed to insert post into DB: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// newPost.ID = insertResult.InsertedID
-
 	SetUserData("feedpost", newPost.PostID, userid)
-
 	mq.Emit("post-created")
 
 	// Respond with success
@@ -196,262 +200,6 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 		"message": "Post created successfully",
 		"data":    newPost,
 	})
-}
-
-func saveUploadedVideoFile(r *http.Request, formKey string) ([]string, error) {
-	files := r.MultipartForm.File[formKey]
-	if len(files) == 0 {
-		return nil, nil // No file to process
-	}
-
-	// Process the first file only
-	file := files[0]
-	src, err := file.Open()
-	if err != nil {
-		return nil, fmt.Errorf("failed to open video file: %w", err)
-	}
-	defer src.Close()
-
-	// Generate unique filename
-	uniqueID := generateID(16)
-	originalFileName := uniqueID + ".mp4"
-	originalFilePath := filepath.Join(feedVideoUploadDir, originalFileName)
-
-	// Ensure upload directory exists
-	if err := os.MkdirAll(feedVideoUploadDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create upload directory: %w", err)
-	}
-
-	// Save the original file
-	if err := saveFile(src, originalFilePath); err != nil {
-		return nil, fmt.Errorf("failed to save video file: %w", err)
-	}
-
-	// Generate video resolutions
-	resolutions := map[string]string{
-		"144p": "256x144",
-		"480p": "854x480",
-		"720p": "1280x720",
-	}
-
-	var highestResolutionPath string
-	for label, size := range resolutions {
-		outputFileName := fmt.Sprintf("%s-%s.mp4", uniqueID, label)
-		outputFilePath := filepath.Join(feedVideoUploadDir, outputFileName)
-		outputPosterName := fmt.Sprintf("%s-%s.jpg", uniqueID, label)
-		outputPosterPath := filepath.Join(feedVideoUploadDir, outputPosterName)
-
-		if err := processVideoResolution(originalFilePath, outputFilePath, size); err != nil {
-			return nil, fmt.Errorf("failed to create %s video: %w", label, err)
-		}
-		fmt.Printf("Video file %s created successfully!\n", outputFileName)
-
-		if err := createVideoPoster(outputFilePath, outputPosterPath); err != nil {
-			return nil, fmt.Errorf("failed to create %s poster: %w", label, err)
-		}
-		fmt.Printf("Poster file %s created successfully!\n", outputPosterName)
-
-		highestResolutionPath = "/postpic/" + outputFileName
-	}
-
-	// Generate a default poster from the original video (at 5 seconds)
-	defaultPosterPath := filepath.Join(feedVideoUploadDir, fmt.Sprintf("%s.jpg", uniqueID))
-	if err := createPoster(originalFilePath, defaultPosterPath); err != nil {
-		return nil, fmt.Errorf("failed to create default video poster: %w", err)
-	}
-	fmt.Printf("Default poster %s created successfully!\n", defaultPosterPath)
-
-	// Generate subtitles asynchronously
-	go createSubtitleFile(uniqueID)
-
-	// Notify MQ system about the uploaded video
-	mq.Emit("postpics-uploaded")
-
-	return []string{highestResolutionPath}, nil
-}
-
-// Saves the uploaded file to disk
-func saveFile(src io.Reader, dstPath string) error {
-	dst, err := os.Create(dstPath)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	_, err = io.Copy(dst, src)
-	return err
-}
-
-// Processes video into a specific resolution using FFMPEG
-func processVideoResolution(inputPath, outputPath, size string) error {
-	cmd := exec.Command(
-		"ffmpeg", "-i", inputPath,
-		"-vf", fmt.Sprintf("scale=%s", size),
-		"-c:v", "libx264", "-crf", "23",
-		"-preset", "veryfast",
-		"-c:a", "aac", "-b:a", "128k",
-		"-movflags", "+faststart",
-		outputPath,
-	)
-
-	return cmd.Run()
-}
-
-// Creates a poster (poster) from a video at 5 seconds
-func createPoster(videoPath, posterPath string) error {
-	cmd := exec.Command(
-		"ffmpeg", "-i", videoPath,
-		"-ss", "00:00:01", "-vframes", "1",
-		"-q:v", "2", posterPath,
-	)
-	return cmd.Run()
-}
-
-// Creates a poster for specific resolutions
-func createVideoPoster(inputPath, outputPath string) error {
-	cmd := exec.Command(
-		"ffmpeg", "-i", inputPath,
-		"-ss", "00:00:01", "-vframes", "1",
-		"-q:v", "2", outputPath,
-	)
-
-	return cmd.Run()
-}
-
-func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, error) {
-	files := r.MultipartForm.File[formKey]
-	if len(files) == 0 {
-		return nil, nil // No files to process
-	}
-
-	var savedPaths []string
-	for _, file := range files {
-		// Open uploaded file
-		src, err := file.Open()
-		if err != nil {
-			return nil, fmt.Errorf("failed to open %s file: %w", fileType, err)
-		}
-		defer src.Close()
-
-		// Decode the image directly from the file stream
-		img, err := imaging.Decode(src)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode image: %w", err)
-		}
-
-		// Generate a unique file name
-		uniqueID := generateID(16)
-		fileName := uniqueID + ".jpg" // Default extension
-
-		// Define original and thumbnail paths (Ensure forward slashes for JSON)
-		originalPath := filepath.ToSlash(filepath.Join("./postpic", fileName))
-		thumbnailPath := filepath.ToSlash(filepath.Join("./postpic/thumb", fileName))
-
-		// Ensure upload directories exist
-		if err := os.MkdirAll(filepath.Dir(originalPath), 0755); err != nil {
-			return nil, fmt.Errorf("failed to create upload directory: %w", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(thumbnailPath), 0755); err != nil {
-			return nil, fmt.Errorf("failed to create thumbnail directory: %w", err)
-		}
-
-		// Save original image
-		if err := imaging.Save(img, originalPath); err != nil {
-			return nil, fmt.Errorf("failed to save original image: %w", err)
-		}
-
-		// Create and save thumbnail (resize while keeping aspect ratio)
-		thumbImg := imaging.Resize(img, 720, 0, imaging.Lanczos)
-		if err := imaging.Save(thumbImg, thumbnailPath); err != nil {
-			return nil, fmt.Errorf("failed to save thumbnail: %w", err)
-		}
-
-		// Store only the thumbnail path in savedPaths
-		savedPaths = append(savedPaths, originalPath)
-	}
-
-	mq.Emit("postpics-uploaded")
-	mq.Emit("thumbnail-created")
-
-	return savedPaths, nil
-}
-
-func createSubtitleFile(uniqueID string) {
-	// Example subtitles
-	subtitles := []Subtitle{
-		{
-			Index:   1,
-			Start:   "00:00:00.000",
-			End:     "00:00:01.000",
-			Content: "Welcome to the video!",
-		},
-		{
-			Index:   2,
-			Start:   "00:00:01.001",
-			End:     "00:00:02.000",
-			Content: "In this video, we'll learn how to create subtitles in Go.",
-		},
-		{
-			Index:   3,
-			Start:   "00:00:02.001",
-			End:     "00:00:03.000",
-			Content: "Let's get started!",
-		},
-	}
-
-	var lang = "english"
-
-	// File name for the .vtt file
-	// fileName := "example.vtt"
-	fileName := fmt.Sprintf("./postpic/%s-%s.vtt", uniqueID, lang)
-
-	// Create the VTT file
-	err := createVTTFile(fileName, subtitles)
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return
-	}
-
-	fmt.Printf("Subtitle file %s created successfully!\n", fileName)
-}
-
-// Subtitle represents a single subtitle entry
-type Subtitle struct {
-	Index   int
-	Start   string // Start time in format "hh:mm:ss.mmm"
-	End     string // End time in format "hh:mm:ss.mmm"
-	Content string // Subtitle text
-}
-
-func createVTTFile(fileName string, subtitles []Subtitle) error {
-	// Create or overwrite the file
-	file, err := os.Create(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
-	}
-	defer file.Close()
-
-	// Write the WebVTT header
-	_, err = file.WriteString("WEBVTT\n\n")
-	if err != nil {
-		return fmt.Errorf("failed to write header: %v", err)
-	}
-
-	// Write each subtitle entry
-	for _, subtitle := range subtitles {
-		entry := fmt.Sprintf("%d\n%s --> %s\n%s\n\n",
-			subtitle.Index,
-			subtitle.Start,
-			subtitle.End,
-			subtitle.Content,
-		)
-		_, err := file.WriteString(entry)
-		if err != nil {
-			return fmt.Errorf("failed to write subtitle entry: %v", err)
-		}
-	}
-
-	return nil
 }
 
 func EditPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
