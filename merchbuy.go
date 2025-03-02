@@ -36,7 +36,7 @@ func CreateMerchPaymentSession(w http.ResponseWriter, r *http.Request, ps httpro
 	}
 
 	// Respond with the session URL
-	dataResponse := map[string]interface{}{
+	dataResponse := map[string]any{
 		"paymentUrl": session.URL,
 		"eventid":    session.EventID,
 		"merchid":    session.MerchID,
@@ -44,7 +44,7 @@ func CreateMerchPaymentSession(w http.ResponseWriter, r *http.Request, ps httpro
 	}
 
 	// Respond with the session URL
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": true,
 		"data":    dataResponse,
 	}
@@ -54,7 +54,7 @@ func CreateMerchPaymentSession(w http.ResponseWriter, r *http.Request, ps httpro
 
 // BroadcastMerchUpdate sends real-time merch updates to subscribers
 func BroadcastMerchUpdate(eventId, merchId string, remainingMerchs int) {
-	update := map[string]interface{}{
+	update := map[string]any{
 		"type":            "merch_update",
 		"merchId":         merchId,
 		"remainingMerchs": remainingMerchs,
@@ -187,7 +187,7 @@ func buyxMerch(w http.ResponseWriter, request MerchPurchaseRequest, requestingUs
 	// // Respond with success
 	// w.Header().Set("Content-Type", "application/json")
 	// w.WriteHeader(http.StatusOK)
-	// json.NewEncoder(w).Encode(map[string]interface{}{
+	// json.NewEncoder(w).Encode(map[string]any{
 	// 	"success": true,
 	// 	"message": fmt.Sprintf("Successfully purchased %d of %s", stockRequested, merch.Name),
 	// })

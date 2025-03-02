@@ -33,7 +33,7 @@ func logActivity(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 
 	claims := &Claims{}
-	_, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (any, error) {
 		return jwtSecret, nil
 	})
 	if err != nil {
@@ -75,7 +75,7 @@ func getActivityFeed(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	}
 
 	claims := &Claims{}
-	_, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (any, error) {
 		return jwtSecret, nil
 	})
 	if err != nil {

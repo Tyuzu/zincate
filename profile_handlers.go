@@ -222,7 +222,7 @@ func validateJWT(tokenString string) (*Claims, error) {
 	}
 
 	claims := &Claims{}
-	_, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (any, error) {
 		return jwtSecret, nil
 	})
 	if err != nil {

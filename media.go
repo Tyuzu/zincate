@@ -193,7 +193,7 @@ func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Respond with success
 	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":  http.StatusNoContent,
 		"message": "Media deleted successfully",
 	}

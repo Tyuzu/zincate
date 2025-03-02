@@ -74,7 +74,7 @@ func RdxDel(key string) (string, error) {
 		return "", fmt.Errorf("error while doing DEL command in redis : %v", err)
 	}
 
-	return "" + string(value), err
+	return "" + string(rune(value)), err
 }
 
 func RdxHset(hash, key, value string) error {
@@ -108,10 +108,10 @@ func RdxHdel(hash, key string) (string, error) {
 
 	value, err := conn.HDel(ctx, hash, key).Result()
 	if err != nil {
-		return string(value), fmt.Errorf("error while doing HGET command in redis : %v", err)
+		return string(rune(value)), fmt.Errorf("error while doing HGET command in redis : %v", err)
 	}
 
-	return string(value), err
+	return string(rune(value)), err
 
 }
 

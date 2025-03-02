@@ -43,7 +43,7 @@ var (
 	placesCollection     *mongo.Collection
 	businessesCollection *mongo.Collection
 	bookingsCollection   *mongo.Collection
-	menusCollection      *mongo.Collection
+	menuCollection       *mongo.Collection
 	promotionsCollection *mongo.Collection
 	ownersCollection     *mongo.Collection
 	postsCollection      *mongo.Collection
@@ -102,7 +102,7 @@ func main() {
 	placesCollection = client.Database("eventdb").Collection("places")
 	businessesCollection = client.Database("eventdb").Collection("businesses")
 	bookingsCollection = client.Database("eventdb").Collection("bookings")
-	menusCollection = client.Database("eventdb").Collection("menus")
+	menuCollection = client.Database("eventdb").Collection("menu")
 	promotionsCollection = client.Database("eventdb").Collection("promotions")
 	ownersCollection = client.Database("eventdb").Collection("owners")
 	postsCollection = client.Database("eventdb").Collection("posts")
@@ -155,9 +155,14 @@ func main() {
 
 	router.POST("/api/ticket/event/:eventid/:ticketid/payment-session", authenticate(CreateTicketPaymentSession))
 	router.GET("/api/events/event/:eventid/updates", EventUpdates)
-	router.POST("/api/seats/event/:eventid/:ticketid", rateLimit(authenticate(bookSeats)))
+	// router.POST("/api/seats/event/:eventid/:ticketid", rateLimit(authenticate(bookSeats)))
 	// router.POST("/api/ticket/confirm-purchase", authenticate(ConfirmTicketPurchase))
 	router.POST("/api/ticket/event/:eventid/:ticketid/confirm-purchase", authenticate(ConfirmTicketPurchase))
+
+	router.GET("/api/seats/:eventid/available-seats", getAvailableSeats)
+	router.POST("/api/seats/:eventid/lock-seats", lockSeats)
+	router.POST("/api/seats/:eventid/unlock-seats", unlockSeats)
+	router.POST("/api/seats/:eventid/ticket/:ticketid/confirm-purchase", confirmSeatPurchase)
 
 	router.GET("/api/suggestions/places", rateLimit(suggestionsHandler))
 	router.GET("/api/suggestions/follow", authenticate(suggestFollowers))
@@ -182,6 +187,15 @@ func main() {
 	router.GET("/api/places/place/:placeid", getPlace)
 	router.PUT("/api/places/place/:placeid", authenticate(editPlace))
 	router.DELETE("/api/places/place/:placeid", authenticate(deletePlace))
+
+	router.POST("/api/places/menu/:placeid", authenticate(createMenu))
+	router.GET("/api/places/menu/:placeid", getMenus)
+	router.GET("/api/places/menu/:placeid/:menuid", getMenu)
+	router.PUT("/api/places/menu/:placeid/:menuid", authenticate(editMenu))
+	router.DELETE("/api/places/menu/:placeid/:menuid", authenticate(deleteMenu))
+
+	router.POST("/api/places/menu/:placeid/:menuid/payment-session", authenticate(CreateMenuPaymentSession))
+	router.POST("/api/places/menu/:placeid/:menuid/confirm-purchase", authenticate(ConfirmMenuPurchase))
 
 	router.GET("/api/profile/profile", authenticate(getProfile))
 	router.PUT("/api/profile/edit", authenticate(editProfile))

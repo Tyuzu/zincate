@@ -41,11 +41,11 @@ func EncrypIt(strToHash string) string {
 	return fmt.Sprintf("%x", md5.Sum(data))
 }
 
-func sendResponse(w http.ResponseWriter, status int, data interface{}, message string, err error) {
+func sendResponse(w http.ResponseWriter, status int, data any, message string, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":  status,
 		"message": message,
 		"data":    data,
@@ -72,7 +72,7 @@ func contains(slice []string, value string) bool {
 }
 
 // Utility function to send JSON response
-func sendJSONResponse(w http.ResponseWriter, status int, response interface{}) {
+func sendJSONResponse(w http.ResponseWriter, status int, response any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(response); err != nil {

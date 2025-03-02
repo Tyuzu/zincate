@@ -29,7 +29,7 @@ func authenticate(next httprouter.Handle) httprouter.Handle {
 		}
 
 		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (any, error) {
 			return jwtSecret, nil
 		})
 

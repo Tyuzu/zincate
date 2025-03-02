@@ -65,7 +65,7 @@ func GetPosts(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Return the list of posts as JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"ok":   true,
 		"data": posts,
 	})
@@ -195,7 +195,7 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"ok":      true,
 		"message": "Post created successfully",
 		"data":    newPost,
@@ -301,7 +301,7 @@ func EditPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Respond with the updated post
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"ok":      true,
 		"message": "Post updated successfully",
 		"data":    existingPost,
@@ -351,13 +351,13 @@ func DeletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Respond with a success message
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"ok":      true,
 		"message": "Post deleted successfully",
 	})
 }
 
 // // Helper function to convert a string to ObjectID
-// func objectIDFromString(id string) (interface{}, error) {
+// func objectIDFromString(id string) (any, error) {
 // 	return primitive.ObjectIDFromHex(id)
 // }

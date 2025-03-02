@@ -125,7 +125,7 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	// Respond with the created place
 	w.WriteHeader(http.StatusCreated)
-	sanitizedPlace := map[string]interface{}{
+	sanitizedPlace := map[string]any{
 		"placeid":     place.PlaceID,
 		"name":        place.Name,
 		"address":     place.Address,
@@ -201,7 +201,14 @@ func getPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			return
 		}
 	} else {
-		http.Error(w, "Place not found", http.StatusNotFound)
+		// http.Error(w, "Place not found", http.StatusNotFound)
+		// Respond with success
+		w.WriteHeader(http.StatusNotFound)
+		response := map[string]any{
+			"status":  http.StatusNoContent,
+			"message": "Place not found",
+		}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -340,7 +347,7 @@ func editPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Respond with the created place
 	w.WriteHeader(http.StatusCreated)
-	sanitizedPlace := map[string]interface{}{
+	sanitizedPlace := map[string]any{
 		"placeid":     place.PlaceID,
 		"name":        place.Name,
 		"address":     place.Address,
@@ -398,7 +405,7 @@ func deletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Respond with success
 	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":  http.StatusNoContent,
 		"message": "Place deleted successfully",
 	}

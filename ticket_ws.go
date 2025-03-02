@@ -47,7 +47,7 @@ var connections = struct {
 // 	}(conn)
 // }
 
-func broadcastUpdate(message interface{}) {
+func broadcastUpdate(message any) {
 	connections.Lock()
 	defer connections.Unlock()
 
@@ -74,7 +74,7 @@ func broadcastUpdate(message interface{}) {
 // 			continue
 // 		}
 
-// 		var update map[string]interface{}
+// 		var update map[string]any
 // 		json.Unmarshal([]byte(msg.Payload), &update)
 // 		broadcastUpdate(update)
 // 	}

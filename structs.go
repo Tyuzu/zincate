@@ -73,11 +73,6 @@ type Setting struct {
 	Description string      `json:"description"`
 }
 
-type UserSettings struct {
-	UserID   string    `bson:"userID" json:"userID"`
-	Settings []Setting `bson:"settings" json:"settings"`
-}
-
 type Post struct {
 	// ID        interface{} `bson:"_id,omitempty" json:"id"`
 	PostID    string   `bson:"postid,omitempty" json:"postid"`
@@ -170,6 +165,20 @@ type Seat struct {
 	SeatNumber string             `json:"seat_number" bson:"seat_number"`
 	UserID     primitive.ObjectID `json:"user_id" bson:"user_id,omitempty"`
 	Status     string             `json:"status" bson:"status"` // e.g., "booked", "available"
+}
+
+type Menu struct {
+	MenuID      string             `json:"menuid" bson:"menuid"`
+	PlaceID     string             `json:"palceid" bson:"placeid"` // Reference to Place ID
+	Name        string             `json:"name" bson:"name"`
+	Price       float64            `json:"price" bson:"price"`
+	Stock       int                `json:"stock" bson:"stock"` // Number of items available
+	MenuPhoto   string             `json:"menu_pic" bson:"menu_pic"`
+	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Description string             `json:"description,omitempty" bson:"description,omitempty"`
+	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
+	UserID      primitive.ObjectID `bson:"user_id" json:"userId"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updatedAt"`
 }
 
 // UserProfileResponse defines the structure for the user profile response

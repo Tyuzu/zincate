@@ -174,7 +174,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Respond with success
 	w.WriteHeader(http.StatusCreated)
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":  http.StatusCreated,
 		"message": "User registered successfully",
 		"data":    user.Username,
@@ -197,7 +197,7 @@ func logoutUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract the token and invalidate it in Redis
 	tokenString = tokenString[7:]
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		return jwtSecret, nil
 	})
 
@@ -233,7 +233,7 @@ func refreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	tokenString = tokenString[7:]
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		return jwtSecret, nil
 	})
 

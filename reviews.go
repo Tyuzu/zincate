@@ -50,7 +50,7 @@ func getReviews(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		reviews = []Review{}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":  http.StatusOK,
 		"ok":      true,
 		"reviews": reviews,
@@ -149,7 +149,7 @@ func editReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	var updatedFields map[string]interface{}
+	var updatedFields map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&updatedFields); err != nil {
 		http.Error(w, "Invalid update data", http.StatusBadRequest)
 		return

@@ -114,7 +114,7 @@ func createMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Respond with the created merchandise
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"ok":      true,
 		"message": "Merchandise created successfully.",
 		"data":    merch,
@@ -265,7 +265,7 @@ func editMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": "Merch updated successfully",
 	})
@@ -300,7 +300,7 @@ func deleteMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// w.Write([]byte("Merchandise deleted successfully"))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": "Merch updated successfully",
 	})
@@ -357,7 +357,7 @@ func buyMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": fmt.Sprintf("Successfully purchased %d of %s", requestData.Quantity, merch.Name),
 	})

@@ -160,7 +160,7 @@ func GetMenuHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	defer cancel()
 
 	var menu []bson.M
-	cursor, err := menusCollection.Find(ctx, bson.M{"business_id": businessID})
+	cursor, err := menuCollection.Find(ctx, bson.M{"business_id": businessID})
 	if err != nil {
 		http.Error(w, "Failed to fetch menu", http.StatusInternalServerError)
 		return
@@ -342,7 +342,7 @@ func AddOrUpdateMenuHandler(w http.ResponseWriter, r *http.Request, ps httproute
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = menusCollection.UpdateOne(ctx, bson.M{"business_id": id}, bson.M{"$push": bson.M{"items": menuItem}}, options.Update().SetUpsert(true))
+	_, err = menuCollection.UpdateOne(ctx, bson.M{"business_id": id}, bson.M{"$push": bson.M{"items": menuItem}}, options.Update().SetUpsert(true))
 	if err != nil {
 		http.Error(w, "Failed to add/update menu item", http.StatusInternalServerError)
 		return
@@ -368,7 +368,7 @@ func DeleteMenuItemHandler(w http.ResponseWriter, r *http.Request, ps httprouter
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = menusCollection.UpdateOne(ctx, bson.M{"business_id": businessID}, bson.M{"$pull": bson.M{"items": bson.M{"_id": itemID}}})
+	_, err = menuCollection.UpdateOne(ctx, bson.M{"business_id": businessID}, bson.M{"$pull": bson.M{"items": bson.M{"_id": itemID}}})
 	if err != nil {
 		http.Error(w, "Failed to delete menu item", http.StatusInternalServerError)
 		return

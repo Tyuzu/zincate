@@ -195,7 +195,7 @@ func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	if len(updateFields) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"success": false,
 			"message": "No changes detected for ticket",
 		})
@@ -220,7 +220,7 @@ func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Respond with success and updated fields
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": "Ticket updated successfully",
 		"data":    updateFields,
@@ -243,7 +243,7 @@ func deleteTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": "Ticket deleted successfully",
 	})
@@ -312,7 +312,7 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	SetUserData("ticket", ticketID, userID)
 
 	// Broadcast WebSocket message
-	message := map[string]interface{}{
+	message := map[string]any{
 		"event":              "ticket-updated",
 		"eventid":            eventID,
 		"ticketid":           ticketID,
@@ -332,71 +332,71 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Respond with success
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": "Ticket purchased successfully",
 	})
 }
 
-// Book Seats Handler
-func bookSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	var requestBody struct {
-		Seats []string `json:"seats"` // List of seat IDs to be booked
-	}
+// // Book Seats Handler
+// func bookSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	var requestBody struct {
+// 		Seats []string `json:"seats"` // List of seat IDs to be booked
+// 	}
 
-	// Decode the JSON request body
-	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err != nil || len(requestBody.Seats) == 0 {
-		http.Error(w, "Invalid request data", http.StatusBadRequest)
-		return
-	}
+// 	// Decode the JSON request body
+// 	err := json.NewDecoder(r.Body).Decode(&requestBody)
+// 	if err != nil || len(requestBody.Seats) == 0 {
+// 		http.Error(w, "Invalid request data", http.StatusBadRequest)
+// 		return
+// 	}
 
-	// Check seat availability in the database
-	// collection := client.Database("eventdb").Collection("seats")
-	// var seats []Seat
-	cursor, err := seatsCollection.Find(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}})
-	if err != nil {
-		http.Error(w, "Failed to retrieve seats", http.StatusInternalServerError)
-		return
-	}
-	defer cursor.Close(context.TODO())
+// 	// Check seat availability in the database
+// 	// collection := client.Database("eventdb").Collection("seats")
+// 	// var seats []Seat
+// 	cursor, err := seatsCollection.Find(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}})
+// 	if err != nil {
+// 		http.Error(w, "Failed to retrieve seats", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer cursor.Close(context.TODO())
 
-	// Make sure all selected seats are available
-	for cursor.Next(context.TODO()) {
-		var seat Seat
-		err := cursor.Decode(&seat)
-		if err != nil {
-			http.Error(w, "Error processing seat data", http.StatusInternalServerError)
-			return
-		}
+// 	// Make sure all selected seats are available
+// 	for cursor.Next(context.TODO()) {
+// 		var seat Seat
+// 		err := cursor.Decode(&seat)
+// 		if err != nil {
+// 			http.Error(w, "Error processing seat data", http.StatusInternalServerError)
+// 			return
+// 		}
 
-		if seat.Status == "booked" {
-			http.Error(w, "One or more seats are already booked", http.StatusConflict)
-			return
-		}
-	}
+// 		if seat.Status == "booked" {
+// 			http.Error(w, "One or more seats are already booked", http.StatusConflict)
+// 			return
+// 		}
+// 	}
 
-	// Update seats to 'booked'
-	_, err = seatsCollection.UpdateMany(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}}, bson.M{"$set": bson.M{"status": "booked"}})
-	if err != nil {
-		http.Error(w, "Failed to update seat status", http.StatusInternalServerError)
-		return
-	}
+// 	// Update seats to 'booked'
+// 	_, err = seatsCollection.UpdateMany(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}}, bson.M{"$set": bson.M{"status": "booked"}})
+// 	if err != nil {
+// 		http.Error(w, "Failed to update seat status", http.StatusInternalServerError)
+// 		return
+// 	}
 
-	mq.Emit("seats-booked")
+// 	mq.Emit("seats-booked")
 
-	// After successfully updating seat statuses
-	broadcastUpdate(map[string]interface{}{
-		"event":  "seats-updated",
-		"seats":  requestBody.Seats,
-		"status": "booked",
-	})
+// 	// After successfully updating seat statuses
+// 	broadcastUpdate(map[string]interface{}{
+// 		"event":  "seats-updated",
+// 		"seats":  requestBody.Seats,
+// 		"status": "booked",
+// 	})
 
-	// Respond with success
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Seats booked successfully",
-	})
-}
+// 	// Respond with success
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(map[string]interface{}{
+// 		"success": true,
+// 		"message": "Seats booked successfully",
+// 	})
+// }
