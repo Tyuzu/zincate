@@ -47,7 +47,7 @@ var (
 	promotionsCollection *mongo.Collection
 	ownersCollection     *mongo.Collection
 	postsCollection      *mongo.Collection
-	seatsCollection      *mongo.Collection
+	// seatsCollection      *mongo.Collection
 	merchCollection      *mongo.Collection
 	activitiesCollection *mongo.Collection
 	eventsCollection     *mongo.Collection
@@ -106,7 +106,7 @@ func main() {
 	promotionsCollection = client.Database("eventdb").Collection("promotions")
 	ownersCollection = client.Database("eventdb").Collection("owners")
 	postsCollection = client.Database("eventdb").Collection("posts")
-	seatsCollection = client.Database("eventdb").Collection("seats")
+	// seatsCollection = client.Database("eventdb").Collection("seats")
 	merchCollection = client.Database("eventdb").Collection("merch")
 	activitiesCollection = client.Database("eventdb").Collection("activities")
 	eventsCollection = client.Database("eventdb").Collection("events")
@@ -164,6 +164,7 @@ func main() {
 	router.POST("/api/seats/:eventid/unlock-seats", unlockSeats)
 	router.POST("/api/seats/:eventid/ticket/:ticketid/confirm-purchase", confirmSeatPurchase)
 
+	router.GET("/api/suggestions/places/nearby", rateLimit(getNearbyPlaces))
 	router.GET("/api/suggestions/places", rateLimit(suggestionsHandler))
 	router.GET("/api/suggestions/follow", authenticate(suggestFollowers))
 
@@ -240,6 +241,7 @@ func main() {
 	})
 
 	router.ServeFiles("/merchpic/*filepath", http.Dir("merchpic"))
+	router.ServeFiles("/menupic/*filepath", http.Dir("menupic"))
 	router.ServeFiles("/uploads/*filepath", http.Dir("uploads"))
 	router.ServeFiles("/placepic/*filepath", http.Dir("placepic"))
 	router.ServeFiles("/businesspic/*filepath", http.Dir("eventpic"))

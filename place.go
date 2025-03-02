@@ -61,6 +61,7 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		PlaceID:     generateID(14),
 		CreatedBy:   requestingUserID,
 		CreatedAt:   time.Now(),
+		ReviewCount: 0,
 		// CreatedAt:   time.Now().Format(time.RFC3339),
 	}
 
