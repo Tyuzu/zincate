@@ -7,6 +7,7 @@ import (
 	"naevis/activity"
 	"naevis/ads"
 	"naevis/auth"
+	"naevis/db"
 	"naevis/events"
 	"naevis/feed"
 	"naevis/media"
@@ -41,12 +42,8 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-type contextKey string
-
-const userIDKey contextKey = "userId"
-
 func main() {
-
+	db.Init()
 	router := httprouter.New()
 
 	// Example Routes

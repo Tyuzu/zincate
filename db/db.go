@@ -38,7 +38,7 @@ var (
 	Client *mongo.Client
 )
 
-func init() {
+func Init() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file")
