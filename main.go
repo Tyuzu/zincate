@@ -27,8 +27,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Security headers middleware
@@ -42,8 +46,85 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
+var (
+	userCollection       *mongo.Collection
+	userDataCollection   *mongo.Collection
+	ticketsCollection    *mongo.Collection
+	reviewsCollection    *mongo.Collection
+	settingsCollection   *mongo.Collection
+	followingsCollection *mongo.Collection
+	placesCollection     *mongo.Collection
+	menuCollection       *mongo.Collection
+	postsCollection      *mongo.Collection
+	merchCollection      *mongo.Collection
+	activitiesCollection *mongo.Collection
+	eventsCollection     *mongo.Collection
+	mediaCollection      *mongo.Collection
+)
+
 func main() {
-	db.Init()
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
+
+	// Get the MongoDB URI from the environment variable
+	mongoURI := os.Getenv("MONGODB_URI")
+	if mongoURI == "" {
+		log.Fatalf("MONGODB_URI environment variable is not set")
+	}
+
+	// Use the SetServerAPIOptions() method to set the version of the Stable API on the client
+	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+	opts := options.Client().ApplyURI(mongoURI).SetServerAPIOptions(serverAPI)
+
+	// Create a new client and connect to the server
+	client, err := mongo.Connect(context.TODO(), opts)
+	if err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err = client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+
+	// Send a ping to confirm a successful connection
+	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{Key: "ping", Value: 1}}).Err(); err != nil {
+		panic(err)
+	}
+	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
+
+	settingsCollection = client.Database("eventdb").Collection("settings")
+	db.SettingsCollection = settingsCollection
+	reviewsCollection = client.Database("eventdb").Collection("reviews")
+	db.ReviewsCollection = reviewsCollection
+	followingsCollection = client.Database("eventdb").Collection("followings")
+	db.FollowingsCollection = followingsCollection
+	userCollection = client.Database("eventdb").Collection("users")
+	db.UserCollection = userCollection
+	userDataCollection = client.Database("eventdb").Collection("userdata")
+	db.UserDataCollection = userDataCollection
+	ticketsCollection = client.Database("eventdb").Collection("ticks")
+	db.TicketsCollection = ticketsCollection
+	placesCollection = client.Database("eventdb").Collection("places")
+	db.PlacesCollection = placesCollection
+	postsCollection = client.Database("eventdb").Collection("posts")
+	db.PostsCollection = postsCollection
+	merchCollection = client.Database("eventdb").Collection("merch")
+	db.MerchCollection = merchCollection
+	menuCollection = client.Database("eventdb").Collection("menu")
+	db.MenuCollection = menuCollection
+	activitiesCollection = client.Database("eventdb").Collection("activities")
+	db.ActivitiesCollection = activitiesCollection
+	eventsCollection = client.Database("eventdb").Collection("events")
+	db.EventsCollection = eventsCollection
+	mediaCollection = client.Database("eventdb").Collection("media")
+	db.MediaCollection = mediaCollection
+	db.Client = client
+
 	router := httprouter.New()
 
 	// Example Routes
