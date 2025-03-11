@@ -165,10 +165,11 @@ type Ticket struct {
 	EventID     string             `json:"eventid" bson:"eventid"`
 	Name        string             `json:"name" bson:"name"`
 	Price       float64            `json:"price" bson:"price"`
+	Currency    string             `json:"currency" bson:"currency"`
 	Color       string             `json:"color" bson:"color"`
 	Quantity    int                `json:"quantity" bson:"quantity"`
 	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	EntityID    primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	EntityID    string             `json:"entity_id" bson:"entity_id"`
 	EntityType  string             `json:"entity_type" bson:"entity_type"` // "event" or "place"
 	Available   int                `json:"available" bson:"available"`
 	Total       int                `json:"total" bson:"total"`

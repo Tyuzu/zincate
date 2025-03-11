@@ -94,7 +94,7 @@ func CreatePlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		}
 
 		// Ensure the directory exists
-		bannerDir := "./placepic"
+		bannerDir := "./static/placepic"
 		if err := os.MkdirAll(bannerDir, os.ModePerm); err != nil {
 			http.Error(w, "Error creating directory for banner", http.StatusInternalServerError)
 			return
@@ -304,7 +304,7 @@ func EditPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 
 		// Ensure the directory exists
-		bannerDir := "./placepic"
+		bannerDir := "./static/placepic"
 		if err := os.MkdirAll(bannerDir, os.ModePerm); err != nil {
 			http.Error(w, "Error creating directory for banner", http.StatusInternalServerError)
 			return

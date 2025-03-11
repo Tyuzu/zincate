@@ -12,6 +12,7 @@ import (
 	"naevis/utils"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,6 +26,7 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	// Parse form values
 	name := r.FormValue("name")
 	priceStr := r.FormValue("price")
+	currencyStr := r.FormValue("currency")
 	quantityStr := r.FormValue("quantity")
 	color := r.FormValue("color")
 
@@ -35,6 +37,10 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	}
 	if priceStr == "" {
 		http.Error(w, "Price is required", http.StatusBadRequest)
+		return
+	}
+	if currencyStr == "" {
+		http.Error(w, "Currency is required", http.StatusBadRequest)
 		return
 	}
 	if quantityStr == "" {
@@ -61,12 +67,17 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 
 	// Create a new Ticket instance
 	tick := structs.Ticket{
-		EventID:  eventID,
-		Name:     name,
-		Price:    price,
-		Quantity: quantity,
-		Color:    color,
-		TicketID: utils.GenerateID(12), // Ensure unique ID
+		EventID:    eventID,
+		EntityID:   eventID,
+		EntityType: "event",
+		Name:       name,
+		Price:      price,
+		Quantity:   quantity,
+		Currency:   currencyStr,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		Color:      color,
+		TicketID:   utils.GenerateID(12), // Ensure unique ID
 	}
 
 	// Insert ticket into MongoDB
@@ -197,6 +208,9 @@ func EditTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 	if tick.Price > 0 && tick.Price != existingTicket.Price {
 		updateFields["price"] = tick.Price
+	}
+	if tick.Currency != "" && tick.Currency != existingTicket.Currency {
+		updateFields["currency"] = tick.Currency
 	}
 	if tick.Quantity >= 0 && tick.Quantity != existingTicket.Quantity {
 		updateFields["quantity"] = tick.Quantity

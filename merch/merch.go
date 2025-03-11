@@ -93,7 +93,7 @@ func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 
 		// Save the banner file securely
-		savePath := "./merchpic/" + merch.MerchID + fileExtension
+		savePath := "./static/merchpic/" + merch.MerchID + fileExtension
 		out, err := os.Create(savePath)
 		if err != nil {
 			http.Error(w, "Error saving banner: "+err.Error(), http.StatusInternalServerError)

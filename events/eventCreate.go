@@ -21,6 +21,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+var eventpicUploadPath = "./static/eventpic"
+
 func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	// Parse multipart form
@@ -90,13 +92,13 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		bannerFile.Seek(0, io.SeekStart) // Reset the file pointer
 
 		// Ensure the directory exists
-		if err := os.MkdirAll("./eventpic", 0755); err != nil {
+		if err := os.MkdirAll(eventpicUploadPath, 0755); err != nil {
 			http.Error(w, "Error creating directory for banner", http.StatusInternalServerError)
 			return
 		}
 
 		// Sanitize and save the banner image
-		sanitizedFileName := filepath.Join("./eventpic", filepath.Base(event.EventID+".jpg"))
+		sanitizedFileName := filepath.Join(eventpicUploadPath, filepath.Base(event.EventID+".jpg"))
 		out, err := os.Create(sanitizedFileName)
 		if err != nil {
 			http.Error(w, "Error saving banner", http.StatusInternalServerError)
@@ -137,13 +139,13 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		seatingPlanFile.Seek(0, io.SeekStart) // Reset the file pointer
 
 		// Ensure the directory exists
-		if err := os.MkdirAll("./eventpic", 0755); err != nil {
+		if err := os.MkdirAll(eventpicUploadPath, 0755); err != nil {
 			http.Error(w, "Error creating directory for seating plan", http.StatusInternalServerError)
 			return
 		}
 
 		// Sanitize and save the seating plan image
-		sanitizedFileName := filepath.Join("./eventpic", filepath.Base(event.EventID+"seating.jpg"))
+		sanitizedFileName := filepath.Join(eventpicUploadPath, filepath.Base(event.EventID+"seating.jpg"))
 		out, err := os.Create(sanitizedFileName)
 		if err != nil {
 			http.Error(w, "Error saving seating plan", http.StatusInternalServerError)

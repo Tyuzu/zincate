@@ -52,7 +52,7 @@ func uploadBannerHandler(_ http.ResponseWriter, r *http.Request, _ *middleware.C
 	// Save the file
 	// filePath := filepath.Join("./userpic/banner", handler.Filename)
 	// filePath := "./userpic/banner/" + bannerFileName + ".jpg"
-	filePath := "./userpic/banner/" + bannerFileName + ".webp"
+	filePath := "./static/userpic/banner/" + bannerFileName + ".webp"
 	outFile, err := os.Create(filePath)
 	if err != nil {
 		// http.Error(w, "Error saving the file", http.StatusInternalServerError)
@@ -103,7 +103,7 @@ func updateProfilePictures(w http.ResponseWriter, r *http.Request, claims *middl
 
 	// Save the file
 	// filePath := filepath.Join("./userpic", handler.Filename)
-	filePath := "./userpic/" + profileFileName + ".jpg"
+	filePath := "./static/userpic/" + profileFileName + ".jpg"
 	outFile, err := os.Create(filePath)
 	if err != nil {
 		// http.Error(w, "Error saving the file", http.StatusInternalServerError)
@@ -118,7 +118,7 @@ func updateProfilePictures(w http.ResponseWriter, r *http.Request, claims *middl
 		return nil, fmt.Errorf("error writing the file: %w", err)
 	}
 
-	thumbPath := "./userpic/thumb/" + claims.UserID + ".jpg"
+	thumbPath := "./static/userpic/thumb/" + claims.UserID + ".jpg"
 	createThumbnail(filePath, thumbPath, 100, 100)
 
 	update["profile_picture"] = profileFileName + ".jpg"

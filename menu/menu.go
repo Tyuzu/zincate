@@ -91,7 +91,7 @@ func CreateMenu(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 
 		// Save the banner file securely
-		savePath := "./menupic/" + menu.MenuID + fileExtension
+		savePath := "./static/menupic/" + menu.MenuID + fileExtension
 		out, err := os.Create(savePath)
 		if err != nil {
 			http.Error(w, "Error saving banner: "+err.Error(), http.StatusInternalServerError)

@@ -1,9 +1,21 @@
 package mq
 
 import (
+	"bytes"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
-	// "github.com/quic-go/quic-go/http3"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"runtime"
+	"time"
+
+	"github.com/quic-go/quic-go/http3"
 )
+
+var index_url = os.Getenv("SQLITE_INDEX_URL")
 
 type Index struct {
 	EntityType string `json:"entity_type"`
@@ -13,90 +25,90 @@ type Index struct {
 	ItemType   string `json:"item_type"`
 }
 
-func Emit(eventName string, content Index) error {
-	fmt.Println(eventName, content)
-	return nil
-}
-
 // func Emit(eventName string, content Index) error {
-// 	fmt.Println(eventName, " emitted")
-
-// 	// Convert `Index` struct to JSON
-// 	jsonData, err := json.Marshal(content)
-// 	if err != nil {
-// 		return fmt.Errorf("error marshalling JSON: %v", err)
-// 	}
-
-// 	// Send to QUIC server with retry logic
-// 	err = QUIClient("https://localhost:4433/event", jsonData)
-// 	if err != nil {
-// 		return fmt.Errorf("error sending data to QUIC server: %v", err)
-// 	}
-
+// 	fmt.Println(eventName, content)
 // 	return nil
 // }
 
-// func QUIClient(url string, jsonData []byte) error {
-// 	client := &http.Client{
-// 		Transport: &http3.Transport{
-// 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // Skip verification for self-signed cert
-// 		},
-// 	}
+func Emit(eventName string, content Index) error {
+	fmt.Println(eventName, " emitted")
 
-// 	// Retry logic: 3 attempts with exponential backoff
-// 	maxRetries := 3
-// 	baseDelay := time.Second // 1s initial delay
+	// Convert `Index` struct to JSON
+	jsonData, err := json.Marshal(content)
+	if err != nil {
+		return fmt.Errorf("error marshalling JSON: %v", err)
+	}
 
-// 	for attempt := 1; attempt <= maxRetries; attempt++ {
-// 		start := time.Now() // Start profiling time
+	// Send to QUIC server with retry logic
+	err = QUIClient(index_url, jsonData)
+	if err != nil {
+		return fmt.Errorf("error sending data to QUIC server: %v", err)
+	}
 
-// 		// Track memory before request
-// 		var memBefore runtime.MemStats
-// 		runtime.ReadMemStats(&memBefore)
+	return nil
+}
 
-// 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-// 		if err != nil {
-// 			return fmt.Errorf("error creating request: %v", err)
-// 		}
-// 		req.Header.Set("Content-Type", "application/json")
+func QUIClient(url string, jsonData []byte) error {
+	client := &http.Client{
+		Transport: &http3.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // Skip verification for self-signed cert
+		},
+	}
 
-// 		resp, err := client.Do(req)
-// 		if err != nil {
-// 			log.Printf("Attempt %d: request failed: %v", attempt, err)
+	// Retry logic: 3 attempts with exponential backoff
+	maxRetries := 3
+	baseDelay := time.Second // 1s initial delay
 
-// 			if attempt < maxRetries {
-// 				waitTime := baseDelay * (1 << (attempt - 1)) // Exponential backoff
-// 				log.Printf("Retrying in %v...", waitTime)
-// 				time.Sleep(waitTime)
-// 				continue
-// 			}
-// 			return fmt.Errorf("request failed after %d attempts: %v", maxRetries, err)
-// 		}
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		start := time.Now() // Start profiling time
 
-// 		defer resp.Body.Close()
+		// Track memory before request
+		var memBefore runtime.MemStats
+		runtime.ReadMemStats(&memBefore)
 
-// 		body, err := io.ReadAll(resp.Body)
-// 		if err != nil {
-// 			return fmt.Errorf("error reading response: %v", err)
-// 		}
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return fmt.Errorf("error creating request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-// 		// Track memory after request
-// 		var memAfter runtime.MemStats
-// 		runtime.ReadMemStats(&memAfter)
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Printf("Attempt %d: request failed: %v", attempt, err)
 
-// 		// Calculate execution time & memory usage
-// 		elapsed := time.Since(start)
-// 		memUsed := memAfter.Alloc - memBefore.Alloc
+			if attempt < maxRetries {
+				waitTime := baseDelay * (1 << (attempt - 1)) // Exponential backoff
+				log.Printf("Retrying in %v...", waitTime)
+				time.Sleep(waitTime)
+				continue
+			}
+			return fmt.Errorf("request failed after %d attempts: %v", maxRetries, err)
+		}
 
-// 		fmt.Printf("Server Response: %s\n", string(body))
-// 		fmt.Printf("Execution Time: %v\n", elapsed)
-// 		fmt.Printf("Memory Used: %d bytes\n", memUsed)
+		defer resp.Body.Close()
 
-// 		return nil // Success, no need to retry
-// 	}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("error reading response: %v", err)
+		}
 
-// 	return fmt.Errorf("request failed after %d attempts", maxRetries)
-// }
+		// Track memory after request
+		var memAfter runtime.MemStats
+		runtime.ReadMemStats(&memAfter)
+
+		// Calculate execution time & memory usage
+		elapsed := time.Since(start)
+		memUsed := memAfter.Alloc - memBefore.Alloc
+
+		fmt.Printf("Server Response: %s\n", string(body))
+		fmt.Printf("Execution Time: %v\n", elapsed)
+		fmt.Printf("Memory Used: %d bytes\n", memUsed)
+
+		return nil // Success, no need to retry
+	}
+
+	return fmt.Errorf("request failed after %d attempts", maxRetries)
+}
 
 func Notify(eventName string, content Index) error {
 	fmt.Println(eventName, " Notified")

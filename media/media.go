@@ -23,6 +23,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+var mediaUploadPath = "./static/uploads/"
+
 func AddMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	entityType := ps.ByName("entitytype")
 	entityID := ps.ByName("entityid")
@@ -86,7 +88,7 @@ func AddMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			return
 		}
 
-		savePath := "./uploads/" + media.ID + fileExtension
+		savePath := mediaUploadPath + media.ID + fileExtension
 		out, err := os.Create(savePath)
 		if err != nil {
 			http.Error(w, "Error saving media file: "+err.Error(), http.StatusInternalServerError)
@@ -106,7 +108,7 @@ func AddMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			media.Duration = ExtractVideoDuration(savePath)
 		}
 		// Generate default poster from the original video
-		defaultPosterPath := filepath.Join("./uploads/", media.ID+".jpg")
+		defaultPosterPath := filepath.Join(mediaUploadPath, media.ID+".jpg")
 		feed.CreatePoster(savePath, defaultPosterPath, "00:00:01")
 
 		fmt.Printf("Default poster %s created successfully!\n", defaultPosterPath)

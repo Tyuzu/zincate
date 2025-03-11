@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"naevis/db"
@@ -13,71 +14,53 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// Extract and update event fields
 func updateEventFields(r *http.Request) (bson.M, error) {
 	// Parse the multipart form with a 10MB limit
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		return nil, fmt.Errorf("unable to parse form: %v", err)
 	}
 
-	// Prepare a map for updating fields
 	updateFields := bson.M{}
 
-	// Only set the fields that are provided in the form
-	if title := r.FormValue("title"); title != "" {
-		updateFields["title"] = title
+	// Extract "event" field from form-data
+	eventJSON := r.FormValue("event")
+	if eventJSON == "" {
+		return nil, fmt.Errorf("missing event data")
 	}
 
-	if dateStr := r.FormValue("date"); dateStr != "" {
-		if timeStr := r.FormValue("time"); timeStr != "" {
-			// Combine date and time into a single timestamp
-			dateTimeStr := fmt.Sprintf("%sT%s", dateStr, timeStr)
-			parsedDateTime, err := time.Parse("2006-01-02T15:04:05", dateTimeStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid date-time format, expected YYYY-MM-DD and HH:MM:SS")
-			}
-			updateFields["date"] = parsedDateTime.UTC() // Store as a full UTC timestamp
-		} else {
-			// Default time to "00:00:00" if not provided
-			dateTimeStr := fmt.Sprintf("%sT00:00:00", dateStr)
-			parsedDateTime, err := time.Parse("2006-01-02T15:04:05", dateTimeStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid date format, expected YYYY-MM-DD")
-			}
-			updateFields["date"] = parsedDateTime.UTC()
+	// Define a struct to parse the JSON
+	var eventData struct {
+		Title       string `json:"title"`
+		Date        string `json:"date"`
+		Location    string `json:"location"`
+		Place       string `json:"place"`
+		Description string `json:"description"`
+	}
+
+	// Decode the JSON
+	if err := json.Unmarshal([]byte(eventJSON), &eventData); err != nil {
+		return nil, fmt.Errorf("invalid JSON format: %v", err)
+	}
+
+	// Map the fields to updateFields
+	if eventData.Title != "" {
+		updateFields["title"] = eventData.Title
+	}
+	if eventData.Date != "" {
+		parsedDateTime, err := time.Parse(time.RFC3339, eventData.Date)
+		if err != nil {
+			return nil, fmt.Errorf("invalid date format, expected RFC3339 (YYYY-MM-DDTHH:MM:SSZ)")
 		}
+		updateFields["date"] = parsedDateTime.UTC()
 	}
-
-	// if dateStr := r.FormValue("date"); dateStr != "" {
-	// 	// Convert date string to time.Time
-	// 	parsedDate, err := time.Parse("2006-01-02", dateStr)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("invalid date format, expected YYYY-MM-DD")
-	// 	}
-	// 	updateFields["date"] = parsedDate.UTC() // Store in UTC format
-	// }
-
-	// if timeStr := r.FormValue("time"); timeStr != "" {
-	// 	// Parse the time string (expected format: HH:MM:SS)
-	// 	parsedTime, err := time.Parse("15:04:05", timeStr)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("invalid time format, expected HH:MM:SS")
-	// 	}
-
-	// 	// Store as a string (MongoDB doesn't have a separate time type)
-	// 	updateFields["time"] = parsedTime.Format("15:04:05")
-	// }
-
-	if place := r.FormValue("place"); place != "" {
-		updateFields["place"] = place
+	if eventData.Location != "" {
+		updateFields["location"] = eventData.Location
 	}
-
-	if location := r.FormValue("location"); location != "" {
-		updateFields["location"] = location
+	if eventData.Place != "" {
+		updateFields["place"] = eventData.Place
 	}
-
-	if description := r.FormValue("description"); description != "" {
-		updateFields["description"] = description
+	if eventData.Description != "" {
+		updateFields["description"] = eventData.Description
 	}
 
 	return updateFields, nil
@@ -99,12 +82,12 @@ func handleFileUpload(r *http.Request, eventID string, formfile string) (string,
 	// If a new formfile is uploaded, save it and return the file path
 	if formfileFile != nil {
 		// Ensure the directory exists
-		if err := os.MkdirAll("./eventpic", os.ModePerm); err != nil {
+		if err := os.MkdirAll(eventpicUploadPath, os.ModePerm); err != nil {
 			return "", fmt.Errorf("error creating directory for formfile")
 		}
 
 		// Save the formfile image
-		out, err := os.Create("./eventpic/" + eventID + formfile + ".jpg")
+		out, err := os.Create(eventpicUploadPath + "/" + eventID + formfile + ".jpg")
 		if err != nil {
 			return "", fmt.Errorf("error saving %s", formfile)
 		}

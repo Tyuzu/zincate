@@ -16,7 +16,7 @@ import (
 )
 
 // Directory to store uploaded images/videos
-const feedVideoUploadDir = "./postpic/"
+const feedVideoUploadDir = "./static/postpic/"
 
 func saveUploadedVideoFile(r *http.Request, formKey string) ([]int, []string, []string, error) {
 	files := r.MultipartForm.File[formKey]
@@ -226,7 +226,7 @@ func createSubtitleFile(uniqueID string) {
 
 	// File name for the .vtt file
 	// fileName := "example.vtt"
-	fileName := fmt.Sprintf("./postpic/%s/%s-%s.vtt", uniqueID, uniqueID, lang)
+	fileName := fmt.Sprintf("./static/postpic/%s/%s-%s.vtt", uniqueID, uniqueID, lang)
 
 	// Create the VTT file
 	err := createVTTFile(fileName, subtitles)
@@ -305,8 +305,8 @@ func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, []s
 		fileName := uniqueID + ".jpg" // Default extension
 
 		// Define original and thumbnail paths (Ensure forward slashes for JSON)
-		originalPath := filepath.ToSlash(filepath.Join("./postpic", fileName))
-		thumbnailPath := filepath.ToSlash(filepath.Join("./postpic/thumb", fileName))
+		originalPath := filepath.ToSlash(filepath.Join("./static/postpic", fileName))
+		thumbnailPath := filepath.ToSlash(filepath.Join("./static/postpic/thumb", fileName))
 
 		// Ensure upload directories exist
 		if err := os.MkdirAll(filepath.Dir(originalPath), 0755); err != nil {
@@ -328,7 +328,7 @@ func saveUploadedFiles(r *http.Request, formKey, fileType string) ([]string, []s
 		}
 
 		// Store only the thumbnail path in savedPaths
-		savedPaths = append(savedPaths, originalPath)
+		savedPaths = append(savedPaths, filepath.ToSlash(filepath.Join("./postpic", fileName)))
 		savedNames = append(savedNames, uniqueID)
 	}
 
