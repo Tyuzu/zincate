@@ -18,6 +18,7 @@ import (
 	"naevis/profile"
 	"naevis/ratelim"
 	"naevis/reviews"
+	"naevis/search"
 	"naevis/settings"
 	"naevis/suggestions"
 	"naevis/tickets"
@@ -131,6 +132,7 @@ func main() {
 	// router.GET("/", rateLimit(wrapHandler(proxyWithCircuitBreaker("frontend-service"))))
 
 	router.GET("/health", Index)
+	router.GET("/api/search/:entityType", ratelim.RateLimit(search.SearchHandler))
 
 	router.POST("/api/activity/log", ratelim.RateLimit(middleware.Authenticate(activity.LogActivity)))
 	router.GET("/api/activity/get", middleware.Authenticate(activity.GetActivityFeed))
