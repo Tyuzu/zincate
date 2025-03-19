@@ -122,7 +122,7 @@ func AddMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	userdata.SetUserData("media", media.ID, requestingUserID)
 
-	m := mq.Index{EntityType: "media", EntityId: media.ID, Action: "POST", ItemType: entityType, ItemId: entityID}
+	m := mq.Index{EntityType: "media", EntityId: media.ID, Method: "POST", ItemType: entityType, ItemId: entityID}
 	go mq.Emit("media-created", m)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -205,7 +205,7 @@ func DeleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	userdata.DelUserData("media", mediaID, requestingUserID)
 
-	m := mq.Index{EntityType: "media", EntityId: mediaID, Action: "DELETE", ItemType: entityType, ItemId: entityID}
+	m := mq.Index{EntityType: "media", EntityId: mediaID, Method: "DELETE", ItemType: entityType, ItemId: entityID}
 	go mq.Emit("media-deleted", m)
 
 	// Respond with success
@@ -256,7 +256,7 @@ func EditMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	mediaJSON, _ := json.Marshal(media)
 	rdx.RdxSet(cacheKey, string(mediaJSON))
 
-	m := mq.Index{EntityType: "media", EntityId: mediaID, Action: "{PUT}", ItemType: entityType, ItemId: entityID}
+	m := mq.Index{EntityType: "media", EntityId: mediaID, Method: "{PUT}", ItemType: entityType, ItemId: entityID}
 	go mq.Emit("media-edited", m)
 
 	w.Header().Set("Content-Type", "application/json")

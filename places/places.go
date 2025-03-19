@@ -130,7 +130,7 @@ func CreatePlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	userdata.SetUserData("place", place.PlaceID, requestingUserID)
 
-	m := mq.Index{EntityType: "place", EntityId: place.PlaceID, Action: "POST"}
+	m := mq.Index{EntityType: "place", EntityId: place.PlaceID, Method: "POST"}
 	go mq.Emit("place-created", m)
 
 	// Respond with the created place
@@ -355,7 +355,7 @@ func EditPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// 	http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	// }
 
-	m := mq.Index{EntityType: "place", EntityId: placeID, Action: "PUT"}
+	m := mq.Index{EntityType: "place", EntityId: placeID, Method: "PUT"}
 	go mq.Emit("place-edited", m)
 
 	// Respond with the created place
@@ -414,7 +414,7 @@ func DeletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	userdata.DelUserData("place", placeID, requestingUserID)
 
-	m := mq.Index{EntityType: "place", EntityId: placeID, Action: "DELETE"}
+	m := mq.Index{EntityType: "place", EntityId: placeID, Method: "DELETE"}
 	go mq.Emit("place-deleted", m)
 
 	// Respond with success

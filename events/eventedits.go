@@ -92,7 +92,7 @@ func EditEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Emit event update message
-	m := mq.Index{EntityType: "event", EntityId: eventID, Action: "PUT"}
+	m := mq.Index{EntityType: "event", EntityId: eventID, Method: "PUT"}
 	go mq.Emit("event-updated", m)
 
 	// Respond with the updated event
@@ -141,7 +141,7 @@ func DeleteEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	userdata.DelUserData("event", event.EventID, requestingUserID)
 
-	m := mq.Index{EntityType: "event", EntityId: eventID, Action: "DELETE"}
+	m := mq.Index{EntityType: "event", EntityId: eventID, Method: "DELETE"}
 	go mq.Emit("event-deleted", m)
 
 	// Send success response

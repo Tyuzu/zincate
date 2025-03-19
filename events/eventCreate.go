@@ -174,7 +174,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	// ✅ Emit event for messaging queue (if needed)
 	go mq.Emit("event-created", mq.Index{
-		EntityType: "event", EntityId: event.EventID, Action: "POST",
+		EntityType: "event", EntityId: event.EventID, Method: "POST",
 	})
 
 	// ✅ Respond with created event

@@ -96,7 +96,7 @@ func EditProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	m := mq.Index{EntityType: "profile", EntityId: claims.UserID, Action: "PUT"}
+	m := mq.Index{EntityType: "profile", EntityId: claims.UserID, Method: "PUT"}
 	go mq.Emit("profile-edited", m)
 
 	// Respond with the updated profile
@@ -182,7 +182,7 @@ func DeleteProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		return
 	}
 
-	m := mq.Index{EntityType: "profile", EntityId: claims.UserID, Action: "DELETE"}
+	m := mq.Index{EntityType: "profile", EntityId: claims.UserID, Method: "DELETE"}
 	go mq.Emit("profile-deleted", m)
 
 	w.WriteHeader(http.StatusOK)

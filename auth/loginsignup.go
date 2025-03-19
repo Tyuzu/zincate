@@ -172,7 +172,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error caching user in Redis: %v", err)
 	}
 
-	m := mq.Index{EntityType: "user", EntityId: user.UserID, Action: "POST"}
+	m := mq.Index{EntityType: "user", EntityId: user.UserID, Method: "POST"}
 	mq.Emit("user-registered", m)
 
 	// go CreatePreferences(w, r, ps)

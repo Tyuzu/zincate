@@ -116,7 +116,7 @@ func CreateMenu(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	m := mq.Index{EntityType: "menu", EntityId: menu.MenuID, Action: "POST", ItemType: "place", ItemId: placeID}
+	m := mq.Index{EntityType: "menu", EntityId: menu.MenuID, Method: "POST", ItemType: "place", ItemId: placeID}
 	go mq.Emit("menu-created", m)
 
 	// Respond with the created menu
@@ -263,7 +263,7 @@ func EditMenu(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Invalidate the specific menu cache
 	rdx.RdxDel(fmt.Sprintf("menu:%s:%s", placeID, menuID))
 
-	m := mq.Index{EntityType: "menu", EntityId: menuID, Action: "PUT", ItemType: "place", ItemId: placeID}
+	m := mq.Index{EntityType: "menu", EntityId: menuID, Method: "PUT", ItemType: "place", ItemId: placeID}
 	go mq.Emit("menu-edited", m)
 
 	// Send response
@@ -301,7 +301,7 @@ func DeleteMenu(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Invalidate the cache
 	rdx.RdxDel(fmt.Sprintf("menu:%s:%s", placeID, menuID))
 
-	m := mq.Index{EntityType: "menu", EntityId: menuID, Action: "DELETE", ItemType: "place", ItemId: placeID}
+	m := mq.Index{EntityType: "menu", EntityId: menuID, Method: "DELETE", ItemType: "place", ItemId: placeID}
 	go mq.Emit("menu-deleted", m)
 
 	// // Send response

@@ -197,7 +197,7 @@ func CreateTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	}
 
 	userdata.SetUserData("feedpost", newPost.PostID, userid)
-	m := mq.Index{EntityType: "feedpost", EntityId: newPost.PostID, Action: "POST"}
+	m := mq.Index{EntityType: "feedpost", EntityId: newPost.PostID, Method: "POST"}
 	go mq.Emit("post-created", m)
 
 	// Respond with success
@@ -304,7 +304,7 @@ func EditPost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 	existingPost.Timestamp = updateFields["timestamp"].(string)
 
-	m := mq.Index{EntityType: "feedpost", EntityId: postID, Action: "PUT"}
+	m := mq.Index{EntityType: "feedpost", EntityId: postID, Method: "PUT"}
 	go mq.Emit("post-edited", m)
 
 	// Respond with the updated post
@@ -355,7 +355,7 @@ func DeletePost(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	userdata.DelUserData("feedpost", postID, requestingUserID)
 
-	m := mq.Index{EntityType: "feedpost", EntityId: postID, Action: "DELETE"}
+	m := mq.Index{EntityType: "feedpost", EntityId: postID, Method: "DELETE"}
 	go mq.Emit("post-deleted", m)
 
 	// Respond with a success message

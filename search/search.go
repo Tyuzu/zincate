@@ -3,7 +3,6 @@ package search
 import (
 	"fmt"
 	"log"
-	"naevis/mq"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -32,11 +31,17 @@ func SearchHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		return
 	}
 
-	var results, err = mq.FetchResults(entityType, query)
+	var results, err = FetchResults(entityType, query)
 	if err != nil {
 		log.Println(err)
 	}
 
 	// fmt.Println(results)
 	fmt.Fprintf(w, "%s", string(results))
+}
+
+func FetchResults(entityType, query string) ([]byte, error) {
+	_ = query
+	_ = entityType
+	return []byte{}, nil
 }

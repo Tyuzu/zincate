@@ -190,11 +190,11 @@ func UpdateFollowRelationship(currentUserID, targetUserID, action string) error 
 	}
 
 	if action == "unfollow" {
-		m := mq.Index{EntityType: "follow", EntityId: currentUserID, Action: "DELETE", ItemId: targetUserID}
+		m := mq.Index{EntityType: "follow", EntityId: currentUserID, Method: "DELETE", ItemId: targetUserID}
 		go mq.Emit("unfllowed", m)
 
 	} else {
-		m := mq.Index{EntityType: "follow", EntityId: currentUserID, Action: "PUT", ItemId: targetUserID}
+		m := mq.Index{EntityType: "follow", EntityId: currentUserID, Method: "PUT", ItemId: targetUserID}
 		go mq.Emit("followed", m)
 
 	}

@@ -130,7 +130,7 @@ func AddReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	userdata.SetUserData("review", review.ReviewID, userId)
 
-	m := mq.Index{EntityType: "review", EntityId: review.ReviewID, Action: "POST", ItemId: entityId, ItemType: entityType}
+	m := mq.Index{EntityType: "review", EntityId: review.ReviewID, Method: "POST", ItemId: entityId, ItemType: entityType}
 	go mq.Emit("review-added", m)
 
 	log.Println("review : ", review.ReviewID)
@@ -172,7 +172,7 @@ func EditReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	m := mq.Index{EntityType: "review", EntityId: reviewId, Action: "PUT", ItemId: review.EntityID, ItemType: review.EntityType}
+	m := mq.Index{EntityType: "review", EntityId: reviewId, Method: "PUT", ItemId: review.EntityID, ItemType: review.EntityType}
 	go mq.Emit("review-edited", m)
 
 	w.WriteHeader(http.StatusOK)
@@ -203,7 +203,7 @@ func DeleteReview(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 
 	userdata.DelUserData("review", reviewId, userId)
 
-	m := mq.Index{EntityType: "review", EntityId: reviewId, Action: "DELETE", ItemId: review.EntityID, ItemType: review.EntityType}
+	m := mq.Index{EntityType: "review", EntityId: reviewId, Method: "DELETE", ItemId: review.EntityID, ItemType: review.EntityType}
 	go mq.Emit("review-deleted", m)
 
 	w.WriteHeader(http.StatusOK)

@@ -396,7 +396,7 @@ type Event struct {
 	EndDateTime       time.Time         `json:"end_date_time" bson:"end_date_time"`
 	Category          string            `json:"category" bson:"category"`
 	BannerImage       string            `json:"banner_image" bson:"banner_image"`
-	SeatingPlanImage  string            `json:"event-seating" bson:"event-seating"`
+	SeatingPlanImage  string            `json:"seatingplan" bson:"seatingplan"`
 	WebsiteURL        string            `json:"website_url" bson:"website_url"`
 	Status            string            `json:"status" bson:"status"`
 	AccessibilityInfo string            `json:"accessibility_info" bson:"accessibility_info"`

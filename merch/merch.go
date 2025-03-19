@@ -118,7 +118,7 @@ func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	m := mq.Index{EntityType: "merch", EntityId: merch.MerchID, Action: "POST", ItemType: "event", ItemId: eventID}
+	m := mq.Index{EntityType: "merch", EntityId: merch.MerchID, Method: "POST", ItemType: "event", ItemId: eventID}
 	go mq.Emit("merch-created", m)
 
 	// Respond with the created merchandise
@@ -265,7 +265,7 @@ func EditMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Invalidate the specific merch cache
 	rdx.RdxDel(fmt.Sprintf("merch:%s:%s", eventID, merchID))
 
-	m := mq.Index{EntityType: "merch", EntityId: merchID, Action: "PUT", ItemType: "event", ItemId: eventID}
+	m := mq.Index{EntityType: "merch", EntityId: merchID, Method: "PUT", ItemType: "event", ItemId: eventID}
 	go mq.Emit("merch-edited", m)
 
 	// Send response
@@ -303,7 +303,7 @@ func DeleteMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Invalidate the cache
 	rdx.RdxDel(fmt.Sprintf("merch:%s:%s", eventID, merchID))
 
-	m := mq.Index{EntityType: "merch", EntityId: merchID, Action: "DELETE", ItemType: "event", ItemId: eventID}
+	m := mq.Index{EntityType: "merch", EntityId: merchID, Method: "DELETE", ItemType: "event", ItemId: eventID}
 	go mq.Emit("merch-deleted", m)
 
 	// // Send response

@@ -87,7 +87,7 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		http.Error(w, "Failed to create ticket: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	m := mq.Index{EntityType: "ticket", EntityId: tick.TicketID, Action: "POST", ItemType: "event", ItemId: eventID}
+	m := mq.Index{EntityType: "ticket", EntityId: tick.TicketID, Method: "POST", ItemType: "event", ItemId: eventID}
 	go mq.Emit("ticket-created", m)
 
 	// Respond with the created ticket
@@ -243,7 +243,7 @@ func EditTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// } else {
 	// 	log.Printf("Cache invalidated for event: %s", eventID)
 	// }
-	m := mq.Index{EntityType: "ticket", EntityId: tickID, Action: "PUT", ItemType: "event", ItemId: eventID}
+	m := mq.Index{EntityType: "ticket", EntityId: tickID, Method: "PUT", ItemType: "event", ItemId: eventID}
 	go mq.Emit("ticket-edited", m)
 
 	// Respond with success and updated fields
@@ -278,7 +278,7 @@ func DeleteTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	})
 	// RdxDel("event:" + eventID + ":tickets") // Invalidate cache after deletion
 
-	m := mq.Index{EntityType: "ticket", EntityId: tickID, Action: "DELETE", ItemType: "event", ItemId: eventID}
+	m := mq.Index{EntityType: "ticket", EntityId: tickID, Method: "DELETE", ItemType: "event", ItemId: eventID}
 	go mq.Emit("ticket-deleted", m)
 }
 
