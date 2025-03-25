@@ -134,7 +134,7 @@ func main() {
 	router.GET("/health", Index)
 	router.GET("/api/search/:entityType", ratelim.RateLimit(search.SearchHandler))
 
-	router.POST("/api/activity/log", ratelim.RateLimit(middleware.Authenticate(activity.LogActivity)))
+	router.POST("/api/activity/log", ratelim.RateLimit(middleware.Authenticate(activity.LogActivities)))
 	router.GET("/api/activity/get", middleware.Authenticate(activity.GetActivityFeed))
 
 	router.POST("/api/auth/register", ratelim.RateLimit(auth.Register))

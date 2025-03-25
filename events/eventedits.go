@@ -91,6 +91,8 @@ func EditEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	utils.CreateThumb(eventID, eventpicUploadPath, ".jpg", 300, 200)
+
 	// Emit event update message
 	m := mq.Index{EntityType: "event", EntityId: eventID, Method: "PUT"}
 	go mq.Emit("event-updated", m)

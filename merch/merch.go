@@ -21,6 +21,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+var merchUploadPath string = "./static/merchpic"
+
 // Function to handle the creation of merchandise
 func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
@@ -93,7 +95,7 @@ func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 
 		// Save the banner file securely
-		savePath := "./static/merchpic/" + merch.MerchID + fileExtension
+		savePath := merchUploadPath + "/" + merch.MerchID + fileExtension
 		out, err := os.Create(savePath)
 		if err != nil {
 			http.Error(w, "Error saving banner: "+err.Error(), http.StatusInternalServerError)
@@ -105,6 +107,7 @@ func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			http.Error(w, "Error saving banner: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		utils.CreateThumb(merch.MerchID, merchUploadPath, ".jpg", 150, 200)
 
 		// Set the banner photo URL
 		merch.MerchPhoto = merch.MerchID + fileExtension

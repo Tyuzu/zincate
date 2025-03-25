@@ -19,6 +19,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+var menuUploadPath string = "./static/menupic"
+
 // Function to handle the creation of menu
 func CreateMenu(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	placeID := ps.ByName("placeid")
@@ -91,7 +93,7 @@ func CreateMenu(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 
 		// Save the banner file securely
-		savePath := "./static/menupic/" + menu.MenuID + fileExtension
+		savePath := menuUploadPath + "/" + menu.MenuID + fileExtension
 		out, err := os.Create(savePath)
 		if err != nil {
 			http.Error(w, "Error saving banner: "+err.Error(), http.StatusInternalServerError)
@@ -104,6 +106,7 @@ func CreateMenu(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			return
 		}
 
+		utils.CreateThumb(menu.MenuID, menuUploadPath, ".jpg", 150, 200)
 		// Set the banner photo URL
 		menu.MenuPhoto = menu.MenuID + fileExtension
 	}

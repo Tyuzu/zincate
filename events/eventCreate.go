@@ -113,6 +113,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 		// Set the event's banner image field with the saved image path
 		event.BannerImage = filepath.Base(sanitizedFileName)
+		utils.CreateThumb(event.EventID, eventpicUploadPath, ".jpg", 300, 200)
 	}
 
 	// Handle the seating image upload (if present)

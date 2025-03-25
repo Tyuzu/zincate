@@ -87,7 +87,8 @@ func handleFileUpload(r *http.Request, eventID string, formfile string) (string,
 		}
 
 		// Save the formfile image
-		out, err := os.Create(eventpicUploadPath + "/" + eventID + formfile + ".jpg")
+		// out, err := os.Create(eventpicUploadPath + "/" + eventID + formfile + ".jpg")
+		out, err := os.Create(eventpicUploadPath + "/" + eventID + ".jpg")
 		if err != nil {
 			return "", fmt.Errorf("error saving %s", formfile)
 		}
@@ -98,11 +99,11 @@ func handleFileUpload(r *http.Request, eventID string, formfile string) (string,
 			return "", fmt.Errorf("error saving %s", formfile)
 		}
 
+		m := mq.Index{}
+		mq.Notify("event-uploaded", m)
+
 		return eventID + formfile + ".jpg", nil
 	}
-
-	m := mq.Index{}
-	mq.Notify("event-uploaded", m)
 
 	return "", nil
 }

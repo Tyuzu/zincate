@@ -23,134 +23,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreatePlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// Parse the multipart form with a 10 MB limit
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "Unable to parse form", http.StatusBadRequest)
-		return
-	}
-
-	// Retrieve and validate place data
-	name := r.FormValue("name")
-	address := r.FormValue("address")
-	description := r.FormValue("description")
-	capacity := r.FormValue("capacity")
-	category := r.FormValue("category")
-
-	if name == "" || address == "" || description == "" || capacity == "" || category == "" {
-		http.Error(w, "All fields are required", http.StatusBadRequest)
-		return
-	}
-
-	// Validate capacity
-	cap, err := strconv.Atoi(capacity)
-	if err != nil || cap <= 0 {
-		http.Error(w, "Capacity must be a positive integer", http.StatusBadRequest)
-		return
-	}
-
-	// Retrieve the ID of the requesting user from the context
-	requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
-	if !ok {
-		http.Error(w, "Invalid user", http.StatusBadRequest)
-		log.Println("Failed to retrieve user ID from context")
-		return
-	}
-
-	// Create the Place object
-	place := structs.Place{
-		Name:        name,
-		Address:     address,
-		Description: description,
-		Category:    category,
-		Capacity:    cap,
-		PlaceID:     utils.GenerateID(14),
-		CreatedBy:   requestingUserID,
-		CreatedAt:   time.Now(),
-		ReviewCount: 0,
-		// CreatedAt:   time.Now().Format(time.RFC3339),
-	}
-
-	// Handle banner file upload
-	bannerFile, header, err := r.FormFile("banner")
-	if err != nil && err != http.ErrMissingFile {
-		http.Error(w, "Error retrieving banner file", http.StatusBadRequest)
-		return
-	}
-
-	if bannerFile != nil {
-		defer bannerFile.Close()
-
-		// // Validate MIME type (e.g., image/jpeg, image/png)
-		// mimeType := header.Header.Get("Content-Type")
-		// if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "image/webp" {
-		// 	http.Error(w, "Invalid banner file type. Only JPEG, PNG and Webp are allowed.", http.StatusBadRequest)
-		// 	return
-		// }
-
-		if !utils.ValidateImageFileType(w, header) {
-			http.Error(w, "Invalid banner file type. Only jpeg, png, webp, gif, bmp, tiff are allowed.", http.StatusBadRequest)
-			return
-		}
-
-		// Ensure the directory exists
-		bannerDir := "./static/placepic"
-		if err := os.MkdirAll(bannerDir, os.ModePerm); err != nil {
-			http.Error(w, "Error creating directory for banner", http.StatusInternalServerError)
-			return
-		}
-
-		// Save the banner image
-		// bannerPath := fmt.Sprintf("%s/%s.jpg", bannerDir, place.PlaceID)
-		bannerPath := fmt.Sprintf("%s/%s.webp", bannerDir, place.PlaceID)
-		out, err := os.Create(bannerPath)
-		if err != nil {
-			http.Error(w, "Error saving banner", http.StatusInternalServerError)
-			return
-		}
-		defer out.Close()
-
-		if _, err := io.Copy(out, bannerFile); err != nil {
-			os.Remove(bannerPath) // Clean up partial files
-			http.Error(w, "Error saving banner", http.StatusInternalServerError)
-			return
-		}
-
-		// place.Banner = fmt.Sprintf("%s.jpg", place.PlaceID)
-		place.Banner = fmt.Sprintf("%s.webp", place.PlaceID)
-	}
-
-	// Insert the place into MongoDB
-	_, err = db.PlacesCollection.InsertOne(context.TODO(), place)
-	if err != nil {
-		log.Printf("Error inserting place: %v", err)
-		http.Error(w, "Error creating place", http.StatusInternalServerError)
-		return
-	}
-
-	userdata.SetUserData("place", place.PlaceID, requestingUserID)
-
-	m := mq.Index{EntityType: "place", EntityId: place.PlaceID, Method: "POST"}
-	go mq.Emit("place-created", m)
-
-	// Respond with the created place
-	w.WriteHeader(http.StatusCreated)
-	sanitizedPlace := map[string]any{
-		"placeid":     place.PlaceID,
-		"name":        place.Name,
-		"address":     place.Address,
-		"description": place.Description,
-		"category":    place.Category,
-		"capacity":    place.Capacity,
-		"banner":      place.Banner,
-		"created_by":  place.CreatedBy,
-	}
-
-	if err := json.NewEncoder(w).Encode(sanitizedPlace); err != nil {
-		log.Printf("Error encoding response: %v", err)
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
-}
+var bannerDir string = "./static/placepic"
 
 func GetPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	w.Header().Set("Content-Type", "application/json")
@@ -229,18 +102,151 @@ func GetPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 }
 
+// Handles file upload and returns the banner file name
+func handleBannerUpload(w http.ResponseWriter, r *http.Request, placeID string) (string, error) {
+	bannerFile, header, err := r.FormFile("banner")
+	if err != nil {
+		if err == http.ErrMissingFile {
+			return "", nil // No file uploaded, continue without it
+		}
+		return "", fmt.Errorf("error retrieving banner file")
+	}
+	defer bannerFile.Close()
+
+	if !utils.ValidateImageFileType(w, header) {
+		return "", fmt.Errorf("invalid banner file type. Only jpeg, png, webp, gif, bmp, tiff are allowed")
+	}
+
+	// Ensure the directory exists
+	// bannerDir := "./static/placepic"
+	if err := os.MkdirAll(bannerDir, os.ModePerm); err != nil {
+		return "", fmt.Errorf("error creating directory for banner")
+	}
+
+	// Save the banner image
+	bannerPath := fmt.Sprintf("%s/%s.jpg", bannerDir, placeID)
+	out, err := os.Create(bannerPath)
+	if err != nil {
+		return "", fmt.Errorf("error saving banner")
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, bannerFile); err != nil {
+		os.Remove(bannerPath) // Cleanup partial files
+		return "", fmt.Errorf("error saving banner")
+	}
+
+	return fmt.Sprintf("%s.jpg", placeID), nil
+}
+
+// Parses and validates form data for places
+func parsePlaceFormData(_ http.ResponseWriter, r *http.Request) (structs.Place, error) {
+	err := r.ParseMultipartForm(10 << 20) // 10MB limit
+	if err != nil {
+		return structs.Place{}, fmt.Errorf("unable to parse form")
+	}
+
+	name, address, description, category, capacityStr := r.FormValue("name"), r.FormValue("address"), r.FormValue("description"), r.FormValue("category"), r.FormValue("capacity")
+
+	if name == "" || address == "" || description == "" || category == "" || capacityStr == "" {
+		return structs.Place{}, fmt.Errorf("all fields are required")
+	}
+
+	capacity, err := strconv.Atoi(capacityStr)
+	if err != nil || capacity <= 0 {
+		return structs.Place{}, fmt.Errorf("capacity must be a positive integer")
+	}
+
+	return structs.Place{
+		Name:        name,
+		Address:     address,
+		Description: description,
+		Category:    category,
+		Capacity:    capacity,
+		PlaceID:     utils.GenerateID(14),
+		CreatedAt:   time.Now(),
+		ReviewCount: 0,
+	}, nil
+}
+
+// Sends a JSON response
+func respondWithJSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
+}
+
+// Inserts or updates a place in the database
+func updatePlaceInDB(w http.ResponseWriter, placeID string, updateFields bson.M) error {
+	_, err := db.PlacesCollection.UpdateOne(context.TODO(), bson.M{"placeid": placeID}, bson.M{"$set": updateFields})
+	if err != nil {
+		http.Error(w, "Error updating place", http.StatusInternalServerError)
+		return err
+	}
+
+	// Invalidate cache
+	if _, err := rdx.RdxDel("place:" + placeID); err != nil {
+		log.Printf("Cache deletion failed for place ID: %s. Error: %v", placeID, err)
+	} else {
+		log.Printf("Cache successfully invalidated for place ID: %s", placeID)
+	}
+
+	return nil
+}
+
+// Creates a new place
+func CreatePlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	place, err := parsePlaceFormData(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve user ID
+	requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "Invalid user", http.StatusBadRequest)
+		return
+	}
+	place.CreatedBy = requestingUserID
+
+	// Handle banner upload
+	banner, err := handleBannerUpload(w, r, place.PlaceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	place.Banner = banner
+
+	// Insert into MongoDB
+	_, err = db.PlacesCollection.InsertOne(context.TODO(), place)
+	if err != nil {
+		http.Error(w, "Error creating place", http.StatusInternalServerError)
+		return
+	}
+
+	utils.CreateThumb(place.PlaceID, bannerDir, ".jpg", 300, 200)
+
+	userdata.SetUserData("place", place.PlaceID, requestingUserID)
+	go mq.Emit("place-created", mq.Index{EntityType: "place", EntityId: place.PlaceID, Method: "POST"})
+
+	respondWithJSON(w, http.StatusCreated, place)
+}
+
+// Edits an existing place
 func EditPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	placeID := ps.ByName("placeid")
 
-	// Retrieve the ID of the requesting user from the context
+	// Retrieve user ID
 	requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "Invalid user", http.StatusUnauthorized)
 		return
 	}
-	log.Println("Requesting User ID:", requestingUserID)
 
-	// Get the existing place from the database
+	// Fetch the existing place
 	var place structs.Place
 	err := db.PlacesCollection.FindOne(context.TODO(), bson.M{"placeid": placeID}).Decode(&place)
 	if err != nil {
@@ -252,19 +258,19 @@ func EditPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	// Ensure the requesting user is the creator of the place
+	// Ensure authorization
 	if place.CreatedBy != requestingUserID {
 		http.Error(w, "You are not authorized to edit this place", http.StatusForbidden)
 		return
 	}
 
-	// Parse the multipart form
+	// Parse form
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
 		return
 	}
 
-	// Prepare fields for update
+	// Collect update fields
 	updateFields := bson.M{}
 	if name := r.FormValue("name"); name != "" {
 		updateFields["name"] = name
@@ -276,103 +282,27 @@ func EditPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		updateFields["description"] = description
 	}
 
-	// Validate that at least one field is being updated
-	if len(updateFields) == 0 {
-		http.Error(w, "No valid fields to update", http.StatusBadRequest)
-		return
-	}
-
-	// Handle banner file upload
-	bannerFile, header, err := r.FormFile("banner")
-	if err != nil && err != http.ErrMissingFile {
-		http.Error(w, "Error retrieving banner file", http.StatusBadRequest)
-		return
-	}
-	if bannerFile != nil {
-		defer bannerFile.Close()
-
-		// // Validate MIME type
-		// mimeType := header.Header.Get("Content-Type")
-		// if mimeType != "image/jpeg" && mimeType != "image/png" {
-		// 	http.Error(w, "Invalid banner file type. Only JPEG and PNG are allowed.", http.StatusBadRequest)
-		// 	return
-		// }
-
-		if !utils.ValidateImageFileType(w, header) {
-			http.Error(w, "Invalid banner file type. Only jpeg, png, webp, gif, bmp, tiff are allowed.", http.StatusBadRequest)
-			return
-		}
-
-		// Ensure the directory exists
-		bannerDir := "./static/placepic"
-		if err := os.MkdirAll(bannerDir, os.ModePerm); err != nil {
-			http.Error(w, "Error creating directory for banner", http.StatusInternalServerError)
-			return
-		}
-
-		// Save the banner file
-		// bannerPath := fmt.Sprintf("%s/%s.jpg", bannerDir, placeID)
-		bannerPath := fmt.Sprintf("%s/%s.webp", bannerDir, placeID)
-		out, err := os.Create(bannerPath)
-		if err != nil {
-			http.Error(w, "Error saving banner", http.StatusInternalServerError)
-			return
-		}
-		defer out.Close()
-
-		if _, err := io.Copy(out, bannerFile); err != nil {
-			os.Remove(bannerPath) // Clean up partial files
-			http.Error(w, "Error saving banner", http.StatusInternalServerError)
-			return
-		}
-
-		// Add banner to update fields
-		// updateFields["banner"] = fmt.Sprintf("%s.jpg", placeID)
-		updateFields["banner"] = fmt.Sprintf("%s.webp", placeID)
-	}
-
-	// Update the `updated_at` field
-	updateFields["updated_at"] = time.Now().Format(time.RFC3339)
-
-	// Update the place in the database
-	_, err = db.PlacesCollection.UpdateOne(context.TODO(), bson.M{"placeid": placeID}, bson.M{"$set": updateFields})
+	// Handle banner upload
+	banner, err := handleBannerUpload(w, r, placeID)
 	if err != nil {
-		http.Error(w, "Error updating place", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if banner != "" {
+		updateFields["banner"] = banner
+	}
+
+	// Update database
+	updateFields["updated_at"] = time.Now()
+	if err := updatePlaceInDB(w, placeID, updateFields); err != nil {
 		return
 	}
 
-	// Invalidate cache (log success or failure)
-	if _, err := rdx.RdxDel("place:" + placeID); err != nil {
-		log.Printf("Cache deletion failed for place ID: %s. Error: %v", placeID, err)
-	} else {
-		log.Printf("Cache successfully invalidated for place ID: %s", placeID)
-	}
+	utils.CreateThumb(placeID, bannerDir, ".jpg", 300, 200)
 
-	// // Respond with updated fields
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
-	// if err := json.NewEncoder(w).Encode(updateFields); err != nil {
-	// 	http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	// }
+	go mq.Emit("place-edited", mq.Index{EntityType: "place", EntityId: placeID, Method: "PUT"})
 
-	m := mq.Index{EntityType: "place", EntityId: placeID, Method: "PUT"}
-	go mq.Emit("place-edited", m)
-
-	// Respond with the created place
-	w.WriteHeader(http.StatusCreated)
-	sanitizedPlace := map[string]any{
-		"placeid":     place.PlaceID,
-		"name":        place.Name,
-		"address":     place.Address,
-		"description": place.Description,
-		"category":    place.Category,
-		"capacity":    place.Capacity,
-		"banner":      place.Banner,
-		"created_by":  place.CreatedBy,
-	}
-	if err := json.NewEncoder(w).Encode(sanitizedPlace); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	respondWithJSON(w, http.StatusOK, updateFields)
 }
 
 func DeletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
