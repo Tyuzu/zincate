@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	UserCollection *mongo.Collection
-	// ProfilesCollection *mongo.Collection
+	UserCollection       *mongo.Collection
+	IternaryCollection   *mongo.Collection
 	UserDataCollection   *mongo.Collection
 	TicketsCollection    *mongo.Collection
 	ReviewsCollection    *mongo.Collection

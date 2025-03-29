@@ -10,6 +10,7 @@ import (
 	"naevis/db"
 	"naevis/events"
 	"naevis/feed"
+	"naevis/itinerary"
 	"naevis/media"
 	"naevis/menu"
 	"naevis/merch"
@@ -49,6 +50,7 @@ func securityHeaders(next http.Handler) http.Handler {
 
 var (
 	userCollection       *mongo.Collection
+	iternaryCollection   *mongo.Collection
 	userDataCollection   *mongo.Collection
 	ticketsCollection    *mongo.Collection
 	reviewsCollection    *mongo.Collection
@@ -98,6 +100,8 @@ func main() {
 	}
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 
+	iternaryCollection = client.Database("eventdb").Collection("settings")
+	db.IternaryCollection = iternaryCollection
 	settingsCollection = client.Database("eventdb").Collection("settings")
 	db.SettingsCollection = settingsCollection
 	reviewsCollection = client.Database("eventdb").Collection("reviews")
@@ -198,6 +202,15 @@ func main() {
 	router.PUT("/api/media/:entitytype/:entityid/:id", middleware.Authenticate(media.EditMedia))
 	router.GET("/api/media/:entitytype/:entityid", ratelim.RateLimit(media.GetMedias))
 	router.DELETE("/api/media/:entitytype/:entityid/:id", middleware.Authenticate(media.DeleteMedia))
+
+	router.GET("/api/itineraries", itinerary.GetItineraries)               //Fetch all itineraries
+	router.POST("/api/itineraries", itinerary.CreateItinerary)             //Create a new itinerary
+	router.GET("/api/itineraries/all/:id", itinerary.GetItinerary)         //Fetch a single itinerary
+	router.PUT("/api/itineraries/:id", itinerary.UpdateItinerary)          //Update an itinerary
+	router.DELETE("/api/itineraries/:id", itinerary.DeleteItinerary)       //Delete an itinerary
+	router.GET("/api/itineraries/search", itinerary.SearchItineraries)     //Search an itinerary
+	router.POST("/api/itineraries/:id/fork", itinerary.ForkItinerary)      //Fork a new itinerary
+	router.PUT("/api/itineraries/:id/publish", itinerary.PublishItinerary) //Publish an itinerary
 
 	router.GET("/api/places/places", ratelim.RateLimit(places.GetPlaces))
 	router.POST("/api/places/place", middleware.Authenticate(places.CreatePlace))

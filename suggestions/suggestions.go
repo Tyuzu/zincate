@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"naevis/autocom"
 	"naevis/db"
 	"naevis/globals"
 	"naevis/rdx"
@@ -127,16 +127,14 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Par
 		return
 	}
 
-	ctx := context.Background()
-	suggestions, err := GetPlaceSuggestions(ctx, query)
+	// ctx := context.Background()
+	// suggestions, err := GetPlaceSuggestions(ctx, query)
+	suggestions, err := autocom.SearchPlaceAutocorrect(rdx.Conn, query, 10)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error fetching suggestions: %v", err), http.StatusInternalServerError)
 		return
 	}
-	log.Println("handler sugg : ", suggestions)
-	if len(suggestions) == 0 {
-		suggestions = []structs.Suggestion{}
-	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(suggestions)
@@ -190,122 +188,3 @@ func GetNearbyPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 	// Encode and return places data
 	json.NewEncoder(w).Encode(sanitizedPlaces)
 }
-
-// // use this in production
-// func getNearbyPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 	w.Header().Set("Content-Type", "application/json")
-
-// 	// Get latitude & longitude from request query
-// 	lat, err1 := strconv.ParseFloat(r.URL.Query().Get("lat"), 64)
-// 	lng, err2 := strconv.ParseFloat(r.URL.Query().Get("lng"), 64)
-// 	if err1 != nil || err2 != nil {
-// 		http.Error(w, "Invalid latitude or longitude", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	// Define geospatial query (requires a 2dsphere index)
-// 	filter := bson.M{
-// 		"location": bson.M{
-// 			"$near": bson.M{
-// 				"$geometry": bson.M{
-// 					"type":        "Point",
-// 					"coordinates": []float64{lng, lat}, // MongoDB requires [longitude, latitude]
-// 				},
-// 				"$maxDistance": 5000, // Max distance in meters (5 km)
-// 			},
-// 		},
-// 	}
-
-// 	// Fetch places from MongoDB
-// 	cursor, err := db.PlacesCollection.Find(context.TODO(), filter)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cursor.Close(context.TODO())
-
-// 	var places []Place
-// 	if err = cursor.All(context.TODO(), &places); err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	// Return JSON response
-// 	json.NewEncoder(w).Encode(places)
-// }
-
-// // do not use this. Avoid fetching all data & filtering manually unless you have a tiny dataset.
-
-// // func getNearbyPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// // 	getNearbyPlacesWithoutIndex(w, r, ps)
-// // }
-
-// // func getNearbyPlacesWithoutIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-// // 	w.Header().Set("Content-Type", "application/json")
-
-// // 	// Get latitude & longitude from request query
-// // 	lat, err1 := strconv.ParseFloat(r.URL.Query().Get("lat"), 64)
-// // 	lng, err2 := strconv.ParseFloat(r.URL.Query().Get("lng"), 64)
-// // 	if err1 != nil || err2 != nil {
-// // 		http.Error(w, "Invalid latitude or longitude", http.StatusBadRequest)
-// // 		return
-// // 	}
-
-// // 	// Fetch all places from MongoDB (inefficient)
-// // 	cursor, err := db.PlacesCollection.Find(context.TODO(), bson.M{})
-// // 	if err != nil {
-// // 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// // 		return
-// // 	}
-// // 	defer cursor.Close(context.TODO())
-
-// // 	var allPlaces []NearbyPlace
-// // 	if err = cursor.All(context.TODO(), &allPlaces); err != nil {
-// // 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// // 		return
-// // 	}
-
-// // 	// Manually filter places based on distance (inefficient)
-// // 	var nearbyPlaces []NearbyPlace
-// // 	for _, place := range allPlaces {
-// // 		// Ensure location field exists
-
-// // 		placeLng := place.Location.Longitude
-// // 		placeLat := place.Location.Latitude
-
-// // 		// Calculate distance (Haversine formula approximation)
-// // 		distance := haversine(lat, lng, placeLat, placeLng)
-// // 		if distance <= 5.0 { // 5 km threshold
-// // 			nearbyPlaces = append(nearbyPlaces, place)
-// // 		}
-// // 	}
-
-// // 	if len(nearbyPlaces) == 0 {
-// // 		nearbyPlaces = []NearbyPlace{}
-// // 	}
-
-// // 	// Return JSON response
-// // 	json.NewEncoder(w).Encode(nearbyPlaces)
-// // }
-
-// // type NearbyPlace struct {
-// // 	Location Coordinates
-// // 	Name     string
-// // 	PlaceID  string
-// // 	Category string
-// // 	Rating   int
-// // 	Distance string
-// // }
-
-// // func haversine(lat1, lon1, lat2, lon2 float64) float64 {
-// // 	const earthRadius = 6371.0 // Earth's radius in kilometers
-// // 	dLat := (lat2 - lat1) * (math.Pi / 180.0)
-// // 	dLon := (lon2 - lon1) * (math.Pi / 180.0)
-
-// // 	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-// // 		math.Cos(lat1*(math.Pi/180.0))*math.Cos(lat2*(math.Pi/180.0))*
-// // 			math.Sin(dLon/2)*math.Sin(dLon/2)
-
-// // 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-// // 	return earthRadius * c // Distance in km
-// // }
