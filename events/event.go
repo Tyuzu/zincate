@@ -88,9 +88,11 @@ func GetEvents(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 func GetEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	id := ps.ByName("eventid")
 
-	// Aggregation pipeline to fetch event along with related tickets, media, and merch
+	// Aggregation pipeline to fetch event along with related tickets, media, merch, and place name
 	pipeline := mongo.Pipeline{
 		bson.D{{Key: "$match", Value: bson.D{{Key: "eventid", Value: id}}}},
+
+		// Lookup Tickets
 		bson.D{{Key: "$lookup", Value: bson.D{
 			{Key: "from", Value: "ticks"},
 			{Key: "localField", Value: "eventid"},
@@ -98,6 +100,7 @@ func GetEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			{Key: "as", Value: "tickets"},
 		}}},
 
+		// Lookup Media
 		bson.D{{Key: "$lookup", Value: bson.D{
 			{Key: "from", Value: "media"},
 			{Key: "let", Value: bson.D{
@@ -118,16 +121,35 @@ func GetEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			{Key: "as", Value: "media"},
 		}}},
 
+		// Lookup Merch
 		bson.D{{Key: "$lookup", Value: bson.D{
 			{Key: "from", Value: "merch"},
 			{Key: "localField", Value: "eventid"},
 			{Key: "foreignField", Value: "eventid"},
 			{Key: "as", Value: "merch"},
 		}}},
+
+		// Lookup Place Name from Places Collection
+		bson.D{{Key: "$lookup", Value: bson.D{
+			{Key: "from", Value: "places"},
+			{Key: "localField", Value: "placeid"},   // Matching placeid in events
+			{Key: "foreignField", Value: "placeid"}, // Matching placeid in places
+			{Key: "as", Value: "placeInfo"},
+		}}},
+
+		// Unwind placeInfo to extract the place name (if exists)
+		bson.D{{Key: "$unwind", Value: bson.D{
+			{Key: "path", Value: "$placeInfo"},
+			{Key: "preserveNullAndEmptyArrays", Value: true}, // Allow events with no matching place
+		}}},
+
+		// Add place name field separately
+		bson.D{{Key: "$addFields", Value: bson.D{
+			{Key: "placename", Value: "$placeInfo.name"}, // Extract place name
+		}}},
 	}
 
 	// Execute the aggregation query
-	// db.EventsCollection := client.Database("eventdb").Collection("events")
 	cursor, err := db.EventsCollection.Aggregate(context.TODO(), pipeline)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

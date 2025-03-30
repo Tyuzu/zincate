@@ -45,6 +45,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	log.Println("dhnfdg----------", event)
+
 	// Retrieve user ID
 	requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
 	if !ok {

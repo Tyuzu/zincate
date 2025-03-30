@@ -6,6 +6,7 @@ import (
 	"log"
 	"naevis/activity"
 	"naevis/ads"
+	"naevis/agi"
 	"naevis/auth"
 	"naevis/db"
 	"naevis/events"
@@ -63,6 +64,7 @@ var (
 	activitiesCollection *mongo.Collection
 	eventsCollection     *mongo.Collection
 	mediaCollection      *mongo.Collection
+	filesCollection      *mongo.Collection
 )
 
 func main() {
@@ -128,10 +130,13 @@ func main() {
 	db.EventsCollection = eventsCollection
 	mediaCollection = client.Database("eventdb").Collection("media")
 	db.MediaCollection = mediaCollection
+	filesCollection = client.Database("eventdb").Collection("files")
+	db.FilesCollection = filesCollection
 	db.Client = client
 
 	router := httprouter.New()
 
+	rateLimiter := ratelim.NewRateLimiter()
 	// Example Routes
 	// router.GET("/", rateLimit(wrapHandler(proxyWithCircuitBreaker("frontend-service"))))
 
@@ -243,7 +248,10 @@ func main() {
 	router.GET("/api/following/:id", ratelim.RateLimit(middleware.Authenticate(profile.GetFollowing)))
 
 	router.GET("/api/feed/feed", middleware.Authenticate(feed.GetPosts))
-	router.GET("/api/feed/post/:postid", feed.GetPost)
+	router.GET("/api/feed/post/:postid", rateLimiter.Limit(feed.GetPost))
+	router.POST("/api/check-file", rateLimiter.Limit(middleware.Authenticate(feed.CheckUserInFile)))
+	// router.POST("/api/feed/repost/:postid", feed.Repost)
+	// router.DELETE("/api/feed/repost/:postid", feed.DeleteRepost)
 	router.POST("/api/feed/post", ratelim.RateLimit(middleware.Authenticate(feed.CreateTweetPost)))
 	router.PUT("/api/feed/post/:postid", middleware.Authenticate(feed.EditPost))
 	router.DELETE("/api/feed/post/:postid", middleware.Authenticate(feed.DeletePost))
@@ -254,6 +262,13 @@ func main() {
 	router.PUT("/api/settings/setting/:type", ratelim.RateLimit(middleware.Authenticate(settings.UpdateUserSetting)))
 
 	router.GET("/api/sda/sda", ratelim.RateLimit(middleware.Authenticate(ads.GetAds)))
+
+	// router.POST("/api/check-file", rateLimiter.Limit(filecheck.CheckFileExists))
+	// router.POST("/api/upload", rateLimiter.Limit(filecheck.UploadFile))
+	// router.POST("/api/feed/remhash", rateLimiter.Limit(filecheck.RemoveUserFile))
+
+	// router.POST("/agi/home_feed_section", ratelim.RateLimit(middleware.Authenticate(agi.GetHomeFeed)))
+	router.POST("/agi/home_feed_section", ratelim.RateLimit(agi.GetHomeFeed))
 
 	// CORS setup
 	c := cors.New(cors.Options{

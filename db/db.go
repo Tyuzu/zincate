@@ -19,6 +19,7 @@ var (
 	// PromotionsCollection *mongo.Collection
 	// OwnersCollection     *mongo.Collection
 	PostsCollection *mongo.Collection
+	FilesCollection *mongo.Collection
 	// SeatsCollection      *mongo.Collection
 	MerchCollection      *mongo.Collection
 	MenuCollection       *mongo.Collection

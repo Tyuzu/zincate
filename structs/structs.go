@@ -80,14 +80,16 @@ type Setting struct {
 
 type Post struct {
 	// ID        any `bson:"_id,omitempty" json:"id"`
-	PostID    string   `bson:"postid,omitempty" json:"postid"`
-	UserID    string   `json:"userid" bson:"userid"`
-	Username  string   `bson:"username" json:"username"`
-	Text      string   `bson:"text" json:"text"`
-	Type      string   `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
-	Media     []string `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
-	Timestamp string   `bson:"timestamp" json:"timestamp"`
-	Likes     int      `bson:"likes" json:"likes"`
+	PostID   string   `bson:"postid,omitempty" json:"postid"`
+	UserID   string   `json:"userid" bson:"userid"`
+	Username string   `bson:"username" json:"username"`
+	Text     string   `bson:"text" json:"text"`
+	Type     string   `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
+	Media    []string `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
+	// RepostOf    string   `bson:"repostof" json:"repostof"`
+	// RePostCount string   `bson:"repostcount" json:"repostcount"`
+	Timestamp string `bson:"timestamp" json:"timestamp"`
+	Likes     int    `bson:"likes" json:"likes"`
 	// ID         primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
 	Content     string               `json:"content" bson:"content"`
 	MediaURL    []string             `json:"media_url,omitempty" bson:"media_url,omitempty"`
@@ -381,31 +383,33 @@ type Owner struct {
 }
 
 type Event struct {
-	EventID           string            `json:"eventid" bson:"eventid"`
-	Title             string            `json:"title" bson:"title"`
-	Description       string            `json:"description" bson:"description"`
-	Place             string            `json:"place" bson:"place"`
-	Date              time.Time         `json:"date" bson:"date"`
-	Location          string            `json:"location" bson:"location"`
-	CreatorID         string            `json:"creatorid" bson:"creatorid"`
+	EventID          string    `json:"eventid" bson:"eventid"`
+	Title            string    `json:"title" bson:"title"`
+	Description      string    `json:"description" bson:"description"`
+	Date             time.Time `json:"date" bson:"date"`
+	PlaceID          string    `json:"placeid" bson:"placeid"`
+	PlaceName        string    `json:"placename" bson:"placename"`
+	Location         string    `json:"location" bson:"location"`
+	CreatorID        string    `json:"creatorid" bson:"creatorid"`
+	Tickets          []Ticket  `json:"tickets" bson:"tickets"`
+	Merch            []Merch   `json:"merch" bson:"merch"`
+	StartDateTime    time.Time `json:"start_date_time" bson:"start_date_time"`
+	EndDateTime      time.Time `json:"end_date_time" bson:"end_date_time"`
+	Category         string    `json:"category" bson:"category"`
+	BannerImage      string    `json:"banner_image" bson:"banner_image"`
+	SeatingPlanImage string    `json:"seatingplan" bson:"seatingplan"`
+	WebsiteURL       string    `json:"website_url" bson:"website_url"`
+	Status           string    `json:"status" bson:"status"`
+	Tags             []string  `json:"tags" bson:"tags"`
+	CreatedAt        time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" bson:"updated_at"`
+	FAQs             []FAQ     `json:"faqs" bson:"faqs"` // Added FAQs
+	// Place             string            `json:"place" bson:"place"`
 	OrganizerName     string            `json:"organizer_name" bson:"organizer_name"`
 	OrganizerContact  string            `json:"organizer_contact" bson:"organizer_contact"`
-	Tickets           []Ticket          `json:"tickets" bson:"tickets"`
-	Merch             []Merch           `json:"merch" bson:"merch"`
-	StartDateTime     time.Time         `json:"start_date_time" bson:"start_date_time"`
-	EndDateTime       time.Time         `json:"end_date_time" bson:"end_date_time"`
-	Category          string            `json:"category" bson:"category"`
-	BannerImage       string            `json:"banner_image" bson:"banner_image"`
-	SeatingPlanImage  string            `json:"seatingplan" bson:"seatingplan"`
-	WebsiteURL        string            `json:"website_url" bson:"website_url"`
-	Status            string            `json:"status" bson:"status"`
-	AccessibilityInfo string            `json:"accessibility_info" bson:"accessibility_info"`
-	SocialMediaLinks  map[string]string `json:"social_links" bson:"social_links"` // Changed to a map for better structure
-	Tags              []string          `json:"tags" bson:"tags"`
 	CustomFields      map[string]any    `json:"custom_fields" bson:"custom_fields"`
-	CreatedAt         time.Time         `json:"created_at" bson:"created_at"`
-	UpdatedAt         time.Time         `json:"updated_at" bson:"updated_at"`
-	FAQs              []FAQ             `json:"faqs" bson:"faqs"` // Added FAQs
+	SocialMediaLinks  map[string]string `json:"social_links" bson:"social_links"` // Changed to a map for better structure
+	AccessibilityInfo string            `json:"accessibility_info" bson:"accessibility_info"`
 }
 
 // type FAQ struct {
