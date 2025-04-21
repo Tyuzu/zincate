@@ -13,6 +13,8 @@ var (
 	SettingsCollection   *mongo.Collection
 	FollowingsCollection *mongo.Collection
 	PlacesCollection     *mongo.Collection
+	ArtistsCollection    *mongo.Collection
+	CartoonsCollection   *mongo.Collection
 	// BusinessesCollection *mongo.Collection
 	// BookingsCollection   *mongo.Collection
 	// MenusCollection      *mongo.Collection
@@ -23,6 +25,7 @@ var (
 	// SeatsCollection      *mongo.Collection
 	MerchCollection      *mongo.Collection
 	MenuCollection       *mongo.Collection
+	ItineraryCollection  *mongo.Collection
 	ActivitiesCollection *mongo.Collection
 	EventsCollection     *mongo.Collection
 	// GigsCollection       *mongo.Collection

@@ -102,6 +102,47 @@ func GetPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 }
 
+func GetPlaceQ(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	id := r.URL.Query().Get("id")
+
+	// Aggregation pipeline to fetch place along with related tickets, media, and merch
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.D{{Key: "placeid", Value: id}}}},
+	}
+
+	// Execute the aggregation query
+	cursor, err := db.PlacesCollection.Aggregate(context.TODO(), pipeline)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.TODO())
+
+	var place structs.Place
+	if cursor.Next(context.TODO()) {
+		if err := cursor.Decode(&place); err != nil {
+			http.Error(w, "Failed to decode place data", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// http.Error(w, "Place not found", http.StatusNotFound)
+		// Respond with success
+		w.WriteHeader(http.StatusNotFound)
+		response := map[string]any{
+			"status":  http.StatusNoContent,
+			"message": "Place not found",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Encode the place as JSON and write to response
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(place); err != nil {
+		http.Error(w, "Failed to encode place data", http.StatusInternalServerError)
+	}
+}
+
 // Handles file upload and returns the banner file name
 func handleBannerUpload(w http.ResponseWriter, r *http.Request, placeID string) (string, error) {
 	bannerFile, header, err := r.FormFile("banner")

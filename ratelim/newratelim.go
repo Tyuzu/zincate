@@ -46,6 +46,21 @@ func (rl *RateLimiter) getLimiter(ip string) *rate.Limiter {
 	return limiter
 }
 
+// // Middleware to enforce rate limiting
+// func (rl *RateLimiter) Limit(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		ip := r.RemoteAddr
+// 		limiter := rl.getLimiter(ip)
+
+// 		if !limiter.Allow() {
+// 			http.Error(w, "Too many requests. Please try again later.", http.StatusTooManyRequests)
+// 			return
+// 		}
+
+// 		next.ServeHTTP(w, r)
+// 	})
+// }
+
 // Middleware to enforce rate limiting
 
 func (rl *RateLimiter) Limit(next httprouter.Handle) httprouter.Handle {

@@ -100,7 +100,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		}
 
 		// Sanitize and save the banner image
-		sanitizedFileName := filepath.Join(eventpicUploadPath, filepath.Base(event.EventID+".jpg"))
+		sanitizedFileName := filepath.Join(eventpicUploadPath, "/banner/", filepath.Base(event.EventID+".jpg"))
 		out, err := os.Create(sanitizedFileName)
 		if err != nil {
 			http.Error(w, "Error saving banner", http.StatusInternalServerError)
@@ -115,7 +115,8 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 		// Set the event's banner image field with the saved image path
 		event.BannerImage = filepath.Base(sanitizedFileName)
-		utils.CreateThumb(event.EventID, eventpicUploadPath, ".jpg", 300, 200)
+		thumFile := filepath.Join(eventpicUploadPath, "/banner/")
+		utils.CreateThumb(event.EventID, thumFile, ".jpg", 300, 200)
 	}
 
 	// Handle the seating image upload (if present)
@@ -148,7 +149,7 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		}
 
 		// Sanitize and save the seating plan image
-		sanitizedFileName := filepath.Join(eventpicUploadPath, filepath.Base(event.EventID+"seating.jpg"))
+		sanitizedFileName := filepath.Join(eventpicUploadPath, "/seating/", filepath.Base(event.EventID+"seating.jpg"))
 		out, err := os.Create(sanitizedFileName)
 		if err != nil {
 			http.Error(w, "Error saving seating plan", http.StatusInternalServerError)

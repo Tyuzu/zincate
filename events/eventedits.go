@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"io"
 	"log"
 	"naevis/db"
 	"naevis/globals"
@@ -10,6 +11,9 @@ import (
 	"naevis/userdata"
 	"naevis/utils"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -23,6 +27,7 @@ func EditEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	var event structs.Event
 	// Extract and validate update fields
 	updateFields, err := updateEventFields(r)
 	if err != nil {
@@ -37,28 +42,112 @@ func EditEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	// Handle banner image upload
-	bannerImage, err := handleFileUpload(r, eventID, "banner")
-	if err != nil {
-		log.Printf("Banner upload failed for event %s: %v", eventID, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Handle the banner image upload (if present)
+	bannerFile, _, err := r.FormFile("event-banner")
+	if err != nil && err != http.ErrMissingFile {
+		http.Error(w, "Error retrieving banner file", http.StatusBadRequest)
 		return
 	}
 
-	if bannerImage != "" {
-		updateFields["banner_image"] = bannerImage
+	if bannerFile != nil {
+		defer bannerFile.Close()
+
+		// Validate file type
+		buff := make([]byte, 512)
+		if _, err := bannerFile.Read(buff); err != nil {
+			http.Error(w, "Error reading file", http.StatusInternalServerError)
+			return
+		}
+		contentType := http.DetectContentType(buff)
+		if !strings.HasPrefix(contentType, "image/") {
+			http.Error(w, "Invalid file type", http.StatusBadRequest)
+			return
+		}
+		bannerFile.Seek(0, io.SeekStart) // Reset the file pointer
+
+		// Ensure the directory exists
+		if err := os.MkdirAll(eventpicUploadPath, 0755); err != nil {
+			http.Error(w, "Error creating directory for banner", http.StatusInternalServerError)
+			return
+		}
+
+		// Sanitize and save the banner image
+		sanitizedFileName := filepath.Join(eventpicUploadPath, "/banner/", filepath.Base(eventID+".jpg"))
+		log.Println("---||---", sanitizedFileName)
+		out, err := os.Create(sanitizedFileName)
+		if err != nil {
+			http.Error(w, "Error saving banner", http.StatusInternalServerError)
+			return
+		}
+		defer out.Close()
+
+		if _, err := io.Copy(out, bannerFile); err != nil {
+			http.Error(w, "Error saving banner", http.StatusInternalServerError)
+			return
+		}
+
+		// Set the event's banner image field with the saved image path
+		event.BannerImage = filepath.Base(sanitizedFileName)
+		thumFile := filepath.Join(eventpicUploadPath, "/banner/")
+		utils.CreateThumb(eventID, thumFile, ".jpg", 300, 200)
+	}
+
+	if event.BannerImage != "" {
+		updateFields["banner_image"] = event.BannerImage
 	}
 
 	// Handle event seating image upload
-	seatingPlanImage, err := handleFileUpload(r, eventID, "seating")
-	if err != nil {
-		log.Printf("Seating Plan upload failed for event %s: %v", eventID, err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+
+	// Handle the seating image upload (if present)
+	seatingPlanFile, _, err := r.FormFile("event-seating")
+	if err != nil && err != http.ErrMissingFile {
+		http.Error(w, "Error retrieving seating file", http.StatusBadRequest)
 		return
 	}
 
-	if seatingPlanImage != "" {
-		updateFields["event-seating"] = seatingPlanImage
+	if seatingPlanFile != nil {
+		defer seatingPlanFile.Close()
+
+		// Validate file type
+		buff := make([]byte, 512)
+		if _, err := seatingPlanFile.Read(buff); err != nil {
+			http.Error(w, "Error reading file", http.StatusInternalServerError)
+			return
+		}
+		contentType := http.DetectContentType(buff)
+		if !strings.HasPrefix(contentType, "image/") {
+			http.Error(w, "Invalid file type", http.StatusBadRequest)
+			return
+		}
+		seatingPlanFile.Seek(0, io.SeekStart) // Reset the file pointer
+
+		// Ensure the directory exists
+		if err := os.MkdirAll(eventpicUploadPath, 0755); err != nil {
+			http.Error(w, "Error creating directory for seating plan", http.StatusInternalServerError)
+			return
+		}
+
+		// Sanitize and save the seating plan image
+		sanitizedFileName := filepath.Join(eventpicUploadPath, "/seating/", filepath.Base(eventID+"seating.jpg"))
+		log.Println("||---||---||", sanitizedFileName)
+		out, err := os.Create(sanitizedFileName)
+		if err != nil {
+			http.Error(w, "Error saving seating plan", http.StatusInternalServerError)
+			return
+		}
+		defer out.Close()
+
+		if _, err := io.Copy(out, seatingPlanFile); err != nil {
+			http.Error(w, "Error saving seating plan", http.StatusInternalServerError)
+			return
+		}
+
+		// Set the event's seating plan image field with the saved image path
+		event.SeatingPlanImage = filepath.Base(sanitizedFileName)
+	}
+
+	if event.SeatingPlanImage != "" {
+		updateFields["seatingplan"] = event.SeatingPlanImage
 	}
 
 	// Add updated timestamp in BSON format
@@ -90,8 +179,6 @@ func EditEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, "Error retrieving updated event", http.StatusInternalServerError)
 		return
 	}
-
-	utils.CreateThumb(eventID, eventpicUploadPath, ".jpg", 300, 200)
 
 	// Emit event update message
 	m := mq.Index{EntityType: "event", EntityId: eventID, Method: "PUT"}

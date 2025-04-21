@@ -163,6 +163,7 @@ type TicketPurchaseRequest struct {
 // TicketPurchaseResponse represents the response body for ticket purchase confirmation
 type TicketPurchaseResponse struct {
 	Message string `json:"message"`
+	Success string `json:"success"`
 }
 
 // ProcessTicketPayment simulates the payment processing logic
@@ -274,6 +275,7 @@ func buyxTicket(w http.ResponseWriter, r *http.Request, request TicketPurchaseRe
 	// Respond with a success message
 	response := TicketPurchaseResponse{
 		Message: "Payment successfully processed. Ticket purchased.",
+		Success: "true",
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

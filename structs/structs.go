@@ -178,6 +178,9 @@ type Ticket struct {
 	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
 	Description string             `bson:"description,omitempty" json:"description"`
 	Sold        int                `bson:"sold" json:"sold"`
+	SeatStart   int                `bson:"seatstart" json:"seatstart"`
+	SeatEnd     int                `bson:"seatend" json:"seatend"`
+	Seats       []string           `bson:"seats" json:"seats"` // 👈 new field
 	UpdatedAt   time.Time          `bson:"updated_at" json:"updatedAt"`
 }
 

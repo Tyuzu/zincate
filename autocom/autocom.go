@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -55,15 +56,37 @@ func AddEventToAutocorrect(client *redis.Client, eventID, eventName string) erro
 	return nil
 }
 
-// Add a place for autocorrect suggestions
+// // Add a place for autocorrect suggestions
+// func AddPlaceToAutocorrect(client *redis.Client, placeID, placeName string) error {
+// 	ctx := context.Background()
+// 	key := "autocomplete:places"
+
+// 	_, err := client.ZAdd(ctx, key, []redis.Z{
+// 		{
+// 			Score:  0,
+// 			Member: placeName,
+// 		},
+// 	}...).Result()
+
+// 	if err != nil {
+// 		return fmt.Errorf("failed to add place to autocomplete: %v", err)
+// 	}
+
+// 	log.Printf("Place added for autocorrect: %s", placeName)
+// 	return nil
+// }
+
 func AddPlaceToAutocorrect(client *redis.Client, placeID, placeName string) error {
 	ctx := context.Background()
 	key := "autocomplete:places"
 
+	// Store both ID and name
+	member := fmt.Sprintf("%s|%s", placeID, placeName) // Use `|` as a separator
+
 	_, err := client.ZAdd(ctx, key, []redis.Z{
 		{
 			Score:  0,
-			Member: placeName,
+			Member: member, // Store both ID and Name
 		},
 	}...).Result()
 
@@ -71,7 +94,7 @@ func AddPlaceToAutocorrect(client *redis.Client, placeID, placeName string) erro
 		return fmt.Errorf("failed to add place to autocomplete: %v", err)
 	}
 
-	log.Printf("Place added for autocorrect: %s", placeName)
+	log.Printf("Place added for autocorrect: %s (ID: %s)", placeName, placeID)
 	return nil
 }
 
@@ -95,22 +118,52 @@ func SearchEventAutocorrect(client *redis.Client, query string, limit int64) ([]
 	return results, nil
 }
 
-// Search place suggestions based on user input
-func SearchPlaceAutocorrect(client *redis.Client, query string, limit int64) ([]string, error) {
+// // Search place suggestions based on user input
+// func SearchPlaceAutocorrect(client *redis.Client, query string, limit int64) ([]string, error) {
+// 	ctx := context.Background()
+// 	key := "autocomplete:places"
+
+// 	// Get matching place names
+// 	results, err := client.ZRangeByLex(ctx, key, &redis.ZRangeBy{
+// 		Min:    "[" + query,
+// 		Max:    "[" + query + "\xff",
+// 		Offset: 0,
+// 		Count:  limit,
+// 	}).Result()
+
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to search places in autocomplete: %v", err)
+// 	}
+
+// 	log.Println("results() ", results)
+
+// 	return results, nil
+// }
+
+func SearchPlaceAutocorrect(client *redis.Client, query string, limit int64) ([]map[string]string, error) {
+	return FetchPlaceSuggestions(client, query)
+}
+
+func FetchPlaceSuggestions(client *redis.Client, query string) ([]map[string]string, error) {
 	ctx := context.Background()
 	key := "autocomplete:places"
 
-	// Get matching place names
-	results, err := client.ZRangeByLex(ctx, key, &redis.ZRangeBy{
-		Min:    "[" + query,
-		Max:    "[" + query + "\xff",
-		Offset: 0,
-		Count:  limit,
-	}).Result()
-
+	// Get matching places (example: first 10)
+	results, err := client.ZRange(ctx, key, 0, 9).Result()
 	if err != nil {
-		return nil, fmt.Errorf("failed to search places in autocomplete: %v", err)
+		return nil, fmt.Errorf("failed to fetch autocomplete suggestions: %v", err)
 	}
 
-	return results, nil
+	suggestions := []map[string]string{}
+	for _, result := range results {
+		parts := strings.SplitN(result, "|", 2) // Split into ID and Name
+		if len(parts) == 2 {
+			suggestions = append(suggestions, map[string]string{
+				"id":   parts[0],
+				"name": parts[1],
+			})
+		}
+	}
+
+	return suggestions, nil
 }

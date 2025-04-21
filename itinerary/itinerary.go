@@ -1,38 +1,22 @@
+// itinerary.go
 package itinerary
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
+	"net/http"
+	"time"
+
 	"naevis/db"
 	"naevis/profile"
 	"naevis/utils"
-	"net/http"
-	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func GetrequestingUserID(w http.ResponseWriter, r *http.Request) string {
-	// // Retrieve user ID
-	// requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
-	// if !ok {
-	// 	return ""
-	// }
-	// return requestingUserID
-
-	tokenString := r.Header.Get("Authorization")
-	claims, err := profile.ValidateJWT(tokenString)
-	if err != nil {
-		log.Printf("JWT validation error: %v", err)
-		// http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return ""
-	}
-	return claims.UserID
-}
-
+// Itinerary represents the travel itinerary
 type Itinerary struct {
 	ItineraryID string   `json:"itineraryid" bson:"itineraryid,omitempty"`
 	UserID      string   `json:"user_id" bson:"user_id"`
@@ -41,29 +25,43 @@ type Itinerary struct {
 	StartDate   string   `json:"start_date" bson:"start_date"`
 	EndDate     string   `json:"end_date" bson:"end_date"`
 	Locations   []string `json:"locations" bson:"locations"`
-	Status      string   `json:"status" bson:"status"`                               // "Draft" or "Confirmed"
-	Published   bool     `json:"published" bson:"published"`                         // true = visible to others
-	ForkedFrom  *string  `json:"forked_from,omitempty" bson:"forked_from,omitempty"` // Original itinerary ID
+	Status      string   `json:"status" bson:"status"` // Draft/Confirmed
+	Published   bool     `json:"published" bson:"published"`
+	ForkedFrom  *string  `json:"forked_from,omitempty" bson:"forked_from,omitempty"`
+	Deleted     bool     `json:"-" bson:"deleted,omitempty"` // Internal use only
 }
 
+// Utility function to extract user ID from JWT
+func GetRequestingUserID(w http.ResponseWriter, r *http.Request) string {
+	tokenString := r.Header.Get("Authorization")
+	claims, err := profile.ValidateJWT(tokenString)
+	if err != nil {
+		log.Printf("JWT validation error: %v", err)
+		return ""
+	}
+	return claims.UserID
+}
+
+// GET /api/itineraries
 func GetItineraries(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	filter := bson.M{"deleted": bson.M{"$ne": true}} // Only fetch non-deleted itineraries
+	filter := bson.M{"deleted": bson.M{"$ne": true}}
 
-	var itineraries []Itinerary
-	cursor, err := db.IternaryCollection.Find(ctx, filter)
+	cursor, err := db.ItineraryCollection.Find(ctx, filter)
 	if err != nil {
 		http.Error(w, "Error fetching itineraries", http.StatusInternalServerError)
 		return
 	}
 	defer cursor.Close(ctx)
 
+	var itineraries []Itinerary
 	for cursor.Next(ctx) {
 		var itinerary Itinerary
-		cursor.Decode(&itinerary)
-		itineraries = append(itineraries, itinerary)
+		if err := cursor.Decode(&itinerary); err == nil {
+			itineraries = append(itineraries, itinerary)
+		}
 	}
 
 	if itineraries == nil {
@@ -74,21 +72,30 @@ func GetItineraries(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	json.NewEncoder(w).Encode(itineraries)
 }
 
+// POST /api/itineraries
 func CreateItinerary(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var itinerary Itinerary
-	json.NewDecoder(r.Body).Decode(&itinerary)
-
-	if itinerary.Status == "" {
-		itinerary.Status = "Draft" // Default to draft if not provided
+	if err := json.NewDecoder(r.Body).Decode(&itinerary); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
 	}
 
-	itinerary.UserID = GetrequestingUserID(w, r)
+	userID := GetRequestingUserID(w, r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	itinerary.UserID = userID
 	itinerary.ItineraryID = utils.GenerateID(13)
+	if itinerary.Status == "" {
+		itinerary.Status = "Draft"
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result, err := db.IternaryCollection.InsertOne(ctx, itinerary)
+	result, err := db.ItineraryCollection.InsertOne(ctx, itinerary)
 	if err != nil {
 		http.Error(w, "Error inserting itinerary", http.StatusInternalServerError)
 		return
@@ -98,114 +105,17 @@ func CreateItinerary(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	json.NewEncoder(w).Encode(result)
 }
 
-func PublishItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	itineraryID := ps.ByName("id")
-	filter := bson.M{"itineraryid": itineraryID}
-	update := bson.M{"$set": bson.M{"published": true}}
-
-	// GetrequestingUserID(w, r)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	result, err := db.IternaryCollection.UpdateOne(ctx, filter, update)
-	if err != nil {
-		http.Error(w, "Error publishing itinerary", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
-}
-
-func ForkItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	originalID := ps.ByName("id")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	var originalItinerary Itinerary
-	err := db.IternaryCollection.FindOne(ctx, bson.M{"itineraryid": originalID}).Decode(&originalItinerary)
-	if err != nil {
-		http.Error(w, "Original itinerary not found", http.StatusNotFound)
-		return
-	}
-	// GetrequestingUserID(w, r)
-
-	// Create a new itinerary with a new ID but reference the original
-	newItinerary := Itinerary{
-		ItineraryID: utils.GenerateID(13),
-		UserID:      GetrequestingUserID(w, r), // Replace with logged-in user ID
-		Name:        "Forked - " + originalItinerary.Name,
-		Description: originalItinerary.Description,
-		StartDate:   originalItinerary.StartDate,
-		EndDate:     originalItinerary.EndDate,
-		Locations:   originalItinerary.Locations,
-		Status:      "Draft",
-		Published:   false, // Forked itineraries start as private drafts
-		ForkedFrom:  &originalID,
-	}
-
-	result, err := db.IternaryCollection.InsertOne(ctx, newItinerary)
-	if err != nil {
-		http.Error(w, "Error forking itinerary", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(result)
-}
-
-func SearchItineraries(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	queryParams := r.URL.Query()
-
-	filter := bson.M{}
-	if startDate := queryParams.Get("start_date"); startDate != "" {
-		filter["start_date"] = startDate
-	}
-	if location := queryParams.Get("location"); location != "" {
-		filter["locations"] = bson.M{"$in": []string{location}}
-	}
-	if status := queryParams.Get("status"); status != "" {
-		filter["status"] = status
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	var itineraries []Itinerary
-	cursor, err := db.IternaryCollection.Find(ctx, filter)
-	if err != nil {
-		http.Error(w, "Error fetching itineraries", http.StatusInternalServerError)
-		return
-	}
-	defer cursor.Close(ctx)
-
-	for cursor.Next(ctx) {
-		var itinerary Itinerary
-		cursor.Decode(&itinerary)
-		itineraries = append(itineraries, itinerary)
-	}
-
-	if itineraries == nil {
-		itineraries = []Itinerary{}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(itineraries)
-}
-
+// GET /api/itineraries/all/:id
 func GetItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	itineraryID := ps.ByName("id")
-	fmt.Println(itineraryID)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// filter := bson.M{"deleted": bson.M{"$ne": true, "itineraryid": itineraryID}} // Only fetch non-deleted itineraries
-	filter := bson.M{"itineraryid": itineraryID}
+	filter := bson.M{"itineraryid": itineraryID, "deleted": bson.M{"$ne": true}}
 
 	var itinerary Itinerary
-	err := db.IternaryCollection.FindOne(ctx, filter).Decode(&itinerary)
+	err := db.ItineraryCollection.FindOne(ctx, filter).Decode(&itinerary)
 	if err != nil {
 		http.Error(w, "Itinerary not found", http.StatusNotFound)
 		return
@@ -215,57 +125,47 @@ func GetItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	json.NewEncoder(w).Encode(itinerary)
 }
 
+// PUT /api/itineraries/:id
 func UpdateItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// tokenString := r.Header.Get("Authorization")
-	// claims, err := profile.ValidateJWT(tokenString)
-	// if err != nil {
-	// 	log.Printf("JWT validation error: %v", err)
-	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
-	// userID := claims.UserID
-
-	userID := GetrequestingUserID(w, r)
+	userID := GetRequestingUserID(w, r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	itineraryID := ps.ByName("id")
-
-	// Fetch the existing itinerary to check ownership
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var itinerary Itinerary
-	err := db.IternaryCollection.FindOne(ctx, bson.M{"itineraryid": itineraryID}).Decode(&itinerary)
+	var existing Itinerary
+	err := db.ItineraryCollection.FindOne(ctx, bson.M{"itineraryid": itineraryID}).Decode(&existing)
 	if err != nil {
 		http.Error(w, "Itinerary not found", http.StatusNotFound)
 		return
 	}
 
-	// Check if the user is the creator
-	if itinerary.UserID != userID {
-		http.Error(w, "Forbidden: You are not the owner of this itinerary", http.StatusForbidden)
+	if existing.UserID != userID {
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	// Decode the updated data
-	var updatedData Itinerary
-	err = json.NewDecoder(r.Body).Decode(&updatedData)
-	if err != nil {
+	var updated Itinerary
+	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// Update fields
 	update := bson.M{"$set": bson.M{
-		"name":        updatedData.Name,
-		"description": updatedData.Description,
-		"start_date":  updatedData.StartDate,
-		"end_date":    updatedData.EndDate,
-		"locations":   updatedData.Locations,
-		"status":      updatedData.Status,
-		"published":   updatedData.Published,
+		"name":        updated.Name,
+		"description": updated.Description,
+		"start_date":  updated.StartDate,
+		"end_date":    updated.EndDate,
+		"locations":   updated.Locations,
+		"status":      updated.Status,
+		"published":   updated.Published,
 	}}
 
-	_, err = db.IternaryCollection.UpdateOne(ctx, bson.M{"itineraryid": itineraryID}, update)
+	_, err = db.ItineraryCollection.UpdateOne(ctx, bson.M{"itineraryid": itineraryID}, update)
 	if err != nil {
 		http.Error(w, "Error updating itinerary", http.StatusInternalServerError)
 		return
@@ -275,46 +175,32 @@ func UpdateItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 	json.NewEncoder(w).Encode(bson.M{"message": "Itinerary updated successfully"})
 }
 
+// DELETE /api/itineraries/:id
 func DeleteItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// tokenString := r.Header.Get("Authorization")
-	// claims, err := profile.ValidateJWT(tokenString)
-	// if err != nil {
-	// 	log.Printf("JWT validation error: %v", err)
-	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
-	// userID := claims.UserID
-	userID := GetrequestingUserID(w, r)
+	userID := GetRequestingUserID(w, r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	itineraryID := ps.ByName("id")
-
-	// Fetch the existing itinerary to check ownership
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var itinerary Itinerary
-	err := db.IternaryCollection.FindOne(ctx, bson.M{"itineraryid": itineraryID}).Decode(&itinerary)
+	err := db.ItineraryCollection.FindOne(ctx, bson.M{"itineraryid": itineraryID}).Decode(&itinerary)
 	if err != nil {
 		http.Error(w, "Itinerary not found", http.StatusNotFound)
 		return
 	}
 
-	// Check if the user is the creator
 	if itinerary.UserID != userID {
-		http.Error(w, "Forbidden: You are not the owner of this itinerary", http.StatusForbidden)
+		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	// // Delete itinerary
-	// _, err = db.IternaryCollection.DeleteOne(ctx, bson.M{"itineraryid": itineraryID})
-	// if err != nil {
-	// 	http.Error(w, "Error deleting itinerary", http.StatusInternalServerError)
-	// 	return
-	// }
-
-	//soft-delete
 	update := bson.M{"$set": bson.M{"deleted": true}}
-	_, err = db.IternaryCollection.UpdateOne(ctx, bson.M{"itineraryid": itineraryID}, update)
+	_, err = db.ItineraryCollection.UpdateOne(ctx, bson.M{"itineraryid": itineraryID}, update)
 	if err != nil {
 		http.Error(w, "Error deleting itinerary", http.StatusInternalServerError)
 		return
@@ -322,4 +208,112 @@ func DeleteItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(bson.M{"message": "Itinerary deleted successfully"})
+}
+
+// POST /api/itineraries/:id/fork
+func ForkItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	userID := GetRequestingUserID(w, r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	originalID := ps.ByName("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var original Itinerary
+	err := db.ItineraryCollection.FindOne(ctx, bson.M{"itineraryid": originalID}).Decode(&original)
+	if err != nil {
+		http.Error(w, "Original itinerary not found", http.StatusNotFound)
+		return
+	}
+
+	newItinerary := Itinerary{
+		ItineraryID: utils.GenerateID(13),
+		UserID:      userID,
+		Name:        "Forked - " + original.Name,
+		Description: original.Description,
+		StartDate:   original.StartDate,
+		EndDate:     original.EndDate,
+		Locations:   original.Locations,
+		Status:      "Draft",
+		Published:   false,
+		ForkedFrom:  &originalID,
+	}
+
+	result, err := db.ItineraryCollection.InsertOne(ctx, newItinerary)
+	if err != nil {
+		http.Error(w, "Error forking itinerary", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(result)
+}
+
+// PUT /api/itineraries/:id/publish
+func PublishItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	userID := GetRequestingUserID(w, r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	id := ps.ByName("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{"itineraryid": id, "user_id": userID}
+	update := bson.M{"$set": bson.M{"published": true}}
+
+	result, err := db.ItineraryCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		http.Error(w, "Error publishing itinerary", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// GET /api/itineraries/search
+func SearchItineraries(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	query := r.URL.Query()
+
+	filter := bson.M{"deleted": bson.M{"$ne": true}}
+	if start := query.Get("start_date"); start != "" {
+		filter["start_date"] = start
+	}
+	if location := query.Get("location"); location != "" {
+		filter["locations"] = bson.M{"$in": []string{location}}
+	}
+	if status := query.Get("status"); status != "" {
+		filter["status"] = status
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := db.ItineraryCollection.Find(ctx, filter)
+	if err != nil {
+		http.Error(w, "Error fetching itineraries", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var itineraries []Itinerary
+	for cursor.Next(ctx) {
+		var itinerary Itinerary
+		if err := cursor.Decode(&itinerary); err == nil {
+			itineraries = append(itineraries, itinerary)
+		}
+	}
+
+	if itineraries == nil {
+		itineraries = []Itinerary{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(itineraries)
 }

@@ -20,6 +20,84 @@ import (
 )
 
 // Create Ticket
+// func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+
+// 	// Parse form values
+// 	name := r.FormValue("name")
+// 	priceStr := r.FormValue("price")
+// 	currencyStr := r.FormValue("currency")
+// 	quantityStr := r.FormValue("quantity")
+// 	color := r.FormValue("color")
+
+// 	// Validate inputs
+// 	if name == "" {
+// 		http.Error(w, "Name is required", http.StatusBadRequest)
+// 		return
+// 	}
+// 	if priceStr == "" {
+// 		http.Error(w, "Price is required", http.StatusBadRequest)
+// 		return
+// 	}
+// 	if currencyStr == "" {
+// 		http.Error(w, "Currency is required", http.StatusBadRequest)
+// 		return
+// 	}
+// 	if quantityStr == "" {
+// 		http.Error(w, "Quantity is required", http.StatusBadRequest)
+// 		return
+// 	}
+// 	if color == "" {
+// 		http.Error(w, "Color is required", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Convert price and quantity to appropriate types
+// 	price, err := strconv.ParseFloat(priceStr, 64)
+// 	if err != nil || price <= 0 {
+// 		http.Error(w, "Invalid price value", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	quantity, err := strconv.Atoi(quantityStr)
+// 	if err != nil || quantity < 0 {
+// 		http.Error(w, "Invalid quantity value", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Create a new Ticket instance
+// 	tick := structs.Ticket{
+// 		EventID:    eventID,
+// 		EntityID:   eventID,
+// 		EntityType: "event",
+// 		Name:       name,
+// 		Price:      price,
+// 		Quantity:   quantity,
+// 		Currency:   currencyStr,
+// 		CreatedAt:  time.Now(),
+// 		UpdatedAt:  time.Now(),
+// 		Color:      color,
+// 		TicketID:   utils.GenerateID(12), // Ensure unique ID
+// 	}
+
+// 	// Insert ticket into MongoDB
+// 	// collection := client.Database("eventdb").Collection("ticks")
+// 	_, err = db.TicketsCollection.InsertOne(context.TODO(), tick)
+// 	if err != nil {
+// 		http.Error(w, "Failed to create ticket: "+err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	m := mq.Index{EntityType: "ticket", EntityId: tick.TicketID, Method: "POST", ItemType: "event", ItemId: eventID}
+// 	go mq.Emit("ticket-created", m)
+
+// 	// Respond with the created ticket
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusCreated)
+// 	if err := json.NewEncoder(w).Encode(tick); err != nil {
+// 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+// 	}
+// }
+
 func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 
@@ -29,30 +107,15 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	currencyStr := r.FormValue("currency")
 	quantityStr := r.FormValue("quantity")
 	color := r.FormValue("color")
+	seatStartStr := r.FormValue("seatStart")
+	seatEndStr := r.FormValue("seatEnd")
 
 	// Validate inputs
-	if name == "" {
-		http.Error(w, "Name is required", http.StatusBadRequest)
-		return
-	}
-	if priceStr == "" {
-		http.Error(w, "Price is required", http.StatusBadRequest)
-		return
-	}
-	if currencyStr == "" {
-		http.Error(w, "Currency is required", http.StatusBadRequest)
-		return
-	}
-	if quantityStr == "" {
-		http.Error(w, "Quantity is required", http.StatusBadRequest)
-		return
-	}
-	if color == "" {
-		http.Error(w, "Color is required", http.StatusBadRequest)
+	if name == "" || priceStr == "" || currencyStr == "" || quantityStr == "" || color == "" || seatStartStr == "" || seatEndStr == "" {
+		http.Error(w, "All fields including seatStart and seatEnd are required", http.StatusBadRequest)
 		return
 	}
 
-	// Convert price and quantity to appropriate types
 	price, err := strconv.ParseFloat(priceStr, 64)
 	if err != nil || price <= 0 {
 		http.Error(w, "Invalid price value", http.StatusBadRequest)
@@ -65,32 +128,48 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		return
 	}
 
-	// Create a new Ticket instance
+	seatStart, err := strconv.Atoi(seatStartStr)
+	if err != nil || seatStart < 0 {
+		http.Error(w, "Invalid seatStart value", http.StatusBadRequest)
+		return
+	}
+
+	seatEnd, err := strconv.Atoi(seatEndStr)
+	if err != nil || seatEnd < seatStart {
+		http.Error(w, "Invalid seatEnd value", http.StatusBadRequest)
+		return
+	}
+	seats := GenerateSeatLabels(seatStart, seatEnd, "A") // You can use "B", "C" if you want multiple rows
+
 	tick := structs.Ticket{
+		TicketID:   utils.GenerateID(12),
 		EventID:    eventID,
 		EntityID:   eventID,
 		EntityType: "event",
 		Name:       name,
 		Price:      price,
-		Quantity:   quantity,
 		Currency:   currencyStr,
+		Color:      color,
+		Quantity:   quantity,
+		Available:  quantity,
+		Total:      quantity,
+		SeatStart:  seatStart,
+		SeatEnd:    seatEnd,
+		Seats:      seats, // 👈 Save the seat list
+		Sold:       0,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Color:      color,
-		TicketID:   utils.GenerateID(12), // Ensure unique ID
 	}
 
-	// Insert ticket into MongoDB
-	// collection := client.Database("eventdb").Collection("ticks")
 	_, err = db.TicketsCollection.InsertOne(context.TODO(), tick)
 	if err != nil {
 		http.Error(w, "Failed to create ticket: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	m := mq.Index{EntityType: "ticket", EntityId: tick.TicketID, Method: "POST", ItemType: "event", ItemId: eventID}
 	go mq.Emit("ticket-created", m)
 
-	// Respond with the created ticket
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(tick); err != nil {
@@ -177,19 +256,95 @@ func GetTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 }
 
 // Edit Ticket
+// func EditTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+// 	tickID := ps.ByName("ticketid")
+
+// 	// Parse incoming ticket data
+// 	var tick structs.Ticket
+// 	if err := json.NewDecoder(r.Body).Decode(&tick); err != nil {
+// 		http.Error(w, "Invalid input data", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Fetch the current ticket from the database
+// 	// collection := client.Database("eventdb").Collection("ticks")
+// 	var existingTicket structs.Ticket
+// 	err := db.TicketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}).Decode(&existingTicket)
+// 	if err != nil {
+// 		if err == mongo.ErrNoDocuments {
+// 			http.Error(w, "Ticket not found", http.StatusNotFound)
+// 		} else {
+// 			http.Error(w, "Database error", http.StatusInternalServerError)
+// 		}
+// 		return
+// 	}
+
+// 	// Prepare fields to update
+// 	updateFields := bson.M{}
+// 	if tick.Name != "" && tick.Name != existingTicket.Name {
+// 		updateFields["name"] = tick.Name
+// 	}
+// 	if tick.Price > 0 && tick.Price != existingTicket.Price {
+// 		updateFields["price"] = tick.Price
+// 	}
+// 	if tick.Currency != "" && tick.Currency != existingTicket.Currency {
+// 		updateFields["currency"] = tick.Currency
+// 	}
+// 	if tick.Quantity >= 0 && tick.Quantity != existingTicket.Quantity {
+// 		updateFields["quantity"] = tick.Quantity
+// 	}
+// 	if tick.Color != "" && tick.Color != existingTicket.Color {
+// 		updateFields["color"] = tick.Color
+// 	}
+
+// 	// If no fields have changed, return a response without updating
+// 	if len(updateFields) == 0 {
+// 		w.Header().Set("Content-Type", "application/json")
+// 		w.WriteHeader(http.StatusOK)
+// 		json.NewEncoder(w).Encode(map[string]any{
+// 			"success": false,
+// 			"message": "No changes detected for ticket",
+// 		})
+// 		return
+// 	}
+
+// 	// Perform the update in MongoDB
+// 	_, err = db.TicketsCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": updateFields})
+// 	if err != nil {
+// 		http.Error(w, "Failed to update ticket: "+err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// // Invalidate the cache for the event's tickets
+// 	// if _, err := RdxDel("event:" + eventID + ":tickets"); err != nil {
+// 	// 	log.Printf("Cache deletion failed for event: %s, Error: %v", eventID, err)
+// 	// } else {
+// 	// 	log.Printf("Cache invalidated for event: %s", eventID)
+// 	// }
+// 	m := mq.Index{EntityType: "ticket", EntityId: tickID, Method: "PUT", ItemType: "event", ItemId: eventID}
+// 	go mq.Emit("ticket-edited", m)
+
+// 	// Respond with success and updated fields
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(map[string]any{
+// 		"success": true,
+// 		"message": "Ticket updated successfully",
+// 		"data":    updateFields,
+// 	})
+// }
+
 func EditTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	tickID := ps.ByName("ticketid")
 
-	// Parse incoming ticket data
 	var tick structs.Ticket
 	if err := json.NewDecoder(r.Body).Decode(&tick); err != nil {
 		http.Error(w, "Invalid input data", http.StatusBadRequest)
 		return
 	}
 
-	// Fetch the current ticket from the database
-	// collection := client.Database("eventdb").Collection("ticks")
 	var existingTicket structs.Ticket
 	err := db.TicketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}).Decode(&existingTicket)
 	if err != nil {
@@ -201,7 +356,6 @@ func EditTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	// Prepare fields to update
 	updateFields := bson.M{}
 	if tick.Name != "" && tick.Name != existingTicket.Name {
 		updateFields["name"] = tick.Name
@@ -214,12 +368,26 @@ func EditTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 	if tick.Quantity >= 0 && tick.Quantity != existingTicket.Quantity {
 		updateFields["quantity"] = tick.Quantity
+		updateFields["available"] = tick.Quantity
+		updateFields["total"] = tick.Quantity
 	}
 	if tick.Color != "" && tick.Color != existingTicket.Color {
 		updateFields["color"] = tick.Color
 	}
+	if tick.SeatStart > 0 && tick.SeatStart != existingTicket.SeatStart {
+		updateFields["seatstart"] = tick.SeatStart
+	}
+	if tick.SeatEnd > 0 && tick.SeatEnd != existingTicket.SeatEnd {
+		updateFields["seatend"] = tick.SeatEnd
+	}
 
-	// If no fields have changed, return a response without updating
+	// if (tick.SeatStart > 0 && tick.SeatStart != existingTicket.SeatStart) ||
+	// 	(tick.SeatEnd > 0 && tick.SeatEnd != existingTicket.SeatEnd) {
+
+	// 	newSeats := GenerateSeatLabels(tick.SeatStart, tick.SeatEnd, "A")
+	// 	updateFields["seats"] = newSeats
+	// }
+
 	if len(updateFields) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -230,23 +398,17 @@ func EditTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	// Perform the update in MongoDB
+	updateFields["updated_at"] = time.Now()
+
 	_, err = db.TicketsCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": updateFields})
 	if err != nil {
 		http.Error(w, "Failed to update ticket: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// // Invalidate the cache for the event's tickets
-	// if _, err := RdxDel("event:" + eventID + ":tickets"); err != nil {
-	// 	log.Printf("Cache deletion failed for event: %s, Error: %v", eventID, err)
-	// } else {
-	// 	log.Printf("Cache invalidated for event: %s", eventID)
-	// }
 	m := mq.Index{EntityType: "ticket", EntityId: tickID, Method: "PUT", ItemType: "event", ItemId: eventID}
 	go mq.Emit("ticket-edited", m)
 
-	// Respond with success and updated fields
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{
@@ -367,4 +529,12 @@ func BuyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		"success": true,
 		"message": "Ticket purchased successfully",
 	})
+}
+
+func GenerateSeatLabels(start, end int, rowPrefix string) []string {
+	var seats []string
+	for i := start; i <= end; i++ {
+		seats = append(seats, fmt.Sprintf("%s%d", rowPrefix, i))
+	}
+	return seats
 }

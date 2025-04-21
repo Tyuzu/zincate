@@ -4,27 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"naevis/activity"
-	"naevis/ads"
-	"naevis/agi"
-	"naevis/auth"
 	"naevis/db"
-	"naevis/events"
-	"naevis/feed"
-	"naevis/itinerary"
-	"naevis/media"
-	"naevis/menu"
-	"naevis/merch"
-	"naevis/middleware"
-	"naevis/places"
-	"naevis/profile"
 	"naevis/ratelim"
-	"naevis/reviews"
-	"naevis/search"
-	"naevis/settings"
-	"naevis/suggestions"
-	"naevis/tickets"
-	"naevis/userdata"
+	"naevis/routes"
 	"net/http"
 	"os"
 	"os/signal"
@@ -45,6 +27,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
+		// w.Header().Set("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate, private")
 		next.ServeHTTP(w, r) // Call the next handler
 	})
 }
@@ -65,7 +48,55 @@ var (
 	eventsCollection     *mongo.Collection
 	mediaCollection      *mongo.Collection
 	filesCollection      *mongo.Collection
+	artistsCollection    *mongo.Collection
+	cartoonsCollection   *mongo.Collection
 )
+
+// Set up all routes and middleware layers
+func setupRouter(rateLimiter *ratelim.RateLimiter) http.Handler {
+	router := httprouter.New()
+	router.GET("/health", Index)
+
+	routes.AddActivityRoutes(router)
+	routes.AddAuthRoutes(router)
+	routes.AddEventsRoutes(router)
+	routes.AddMerchRoutes(router)
+	routes.AddTicketRoutes(router)
+	routes.AddSuggestionsRoutes(router)
+	routes.AddReviewsRoutes(router)
+	routes.AddMediaRoutes(router)
+	routes.AddPlaceRoutes(router)
+	routes.AddProfileRoutes(router)
+	routes.AddArtistRoutes(router)
+	routes.AddCartoonRoutes(router)
+	routes.AddMapRoutes(router)
+	routes.AddItineraryRoutes(router)
+	routes.AddFeedRoutes(router, rateLimiter)
+	routes.AddSettingsRoutes(router)
+	routes.AddAdsRoutes(router)
+	routes.AddHomeFeedRoutes(router)
+	routes.AddSearchRoutes(router)
+	routes.AddStaticRoutes(router)
+
+	// CORS setup (adjust AllowedOrigins in production)
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"}, // Consider specific origins in production
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+
+	// Wrap handlers with middleware: CORS -> Security -> Logging -> Router
+	return loggingMiddleware(securityHeaders(c.Handler(router)))
+}
+
+// Middleware: Simple request logging
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[%s] %s %s", r.Method, r.RequestURI, r.RemoteAddr)
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 
@@ -132,163 +163,18 @@ func main() {
 	db.MediaCollection = mediaCollection
 	filesCollection = client.Database("eventdb").Collection("files")
 	db.FilesCollection = filesCollection
+	artistsCollection = client.Database("eventdb").Collection("artists")
+	db.ArtistsCollection = artistsCollection
+	cartoonsCollection = client.Database("eventdb").Collection("cartoons")
+	db.CartoonsCollection = cartoonsCollection
 	db.Client = client
 
 	router := httprouter.New()
 
 	rateLimiter := ratelim.NewRateLimiter()
-	// Example Routes
-	// router.GET("/", rateLimit(wrapHandler(proxyWithCircuitBreaker("frontend-service"))))
+	handler := setupRouter(rateLimiter)
 
 	router.GET("/health", Index)
-	router.GET("/api/search/:entityType", ratelim.RateLimit(search.SearchHandler))
-
-	router.POST("/api/activity/log", ratelim.RateLimit(middleware.Authenticate(activity.LogActivities)))
-	router.GET("/api/activity/get", middleware.Authenticate(activity.GetActivityFeed))
-
-	router.POST("/api/auth/register", ratelim.RateLimit(auth.Register))
-	router.POST("/api/auth/login", ratelim.RateLimit(auth.Login))
-	router.POST("/api/auth/logout", middleware.Authenticate(auth.LogoutUser))
-	router.POST("/api/auth/token/refresh", ratelim.RateLimit(middleware.Authenticate(auth.RefreshToken)))
-
-	// router.POST("/initialize", ratelim.RateLimit(InitializeHandler))
-
-	router.GET("/api/events/events", ratelim.RateLimit(events.GetEvents))
-	router.GET("/api/events/events/count", ratelim.RateLimit(events.GetEventsCount))
-	router.POST("/api/events/event", middleware.Authenticate(events.CreateEvent))
-	router.GET("/api/events/event/:eventid", events.GetEvent)
-	router.PUT("/api/events/event/:eventid", middleware.Authenticate(events.EditEvent))
-	router.DELETE("/api/events/event/:eventid", middleware.Authenticate(events.DeleteEvent))
-	router.POST("/api/events/event/:eventid/faqs", events.AddFAQs)
-
-	router.POST("/api/merch/event/:eventid", middleware.Authenticate(merch.CreateMerch))
-	router.POST("/api/merch/event/:eventid/:merchid/buy", ratelim.RateLimit(middleware.Authenticate(merch.BuyMerch)))
-	router.GET("/api/merch/event/:eventid", merch.GetMerchs)
-	router.GET("/api/merch/event/:eventid/:merchid", merch.GetMerch)
-	router.PUT("/api/merch/event/:eventid/:merchid", middleware.Authenticate(merch.EditMerch))
-	router.DELETE("/api/merch/event/:eventid/:merchid", middleware.Authenticate(merch.DeleteMerch))
-
-	router.POST("/api/merch/event/:eventid/:merchid/payment-session", middleware.Authenticate(merch.CreateMerchPaymentSession))
-	router.POST("/api/merch/event/:eventid/:merchid/confirm-purchase", middleware.Authenticate(merch.ConfirmMerchPurchase))
-
-	router.POST("/api/ticket/event/:eventid", middleware.Authenticate(tickets.CreateTicket))
-	router.GET("/api/ticket/event/:eventid", tickets.GetTickets)
-	router.GET("/api/ticket/event/:eventid/:ticketid", tickets.GetTicket)
-	router.PUT("/api/ticket/event/:eventid/:ticketid", middleware.Authenticate(tickets.EditTicket))
-	router.DELETE("/api/ticket/event/:eventid/:ticketid", middleware.Authenticate(tickets.DeleteTicket))
-	router.POST("/api/ticket/event/:eventid/:ticketid/buy", middleware.Authenticate(tickets.BuyTicket))
-
-	// router.POST("/api/ticket/confirm-purchase", middleware.Authenticate(ConfirmTicketPurchase))
-	router.POST("/api/ticket/event/:eventid/:ticketid/payment-session", middleware.Authenticate(tickets.CreateTicketPaymentSession))
-	router.GET("/api/events/event/:eventid/updates", tickets.EventUpdates)
-	// router.POST("/api/seats/event/:eventid/:ticketid", ratelim.RateLimit(middleware.Authenticate(bookSeats)))
-	router.POST("/api/ticket/event/:eventid/:ticketid/confirm-purchase", middleware.Authenticate(tickets.ConfirmTicketPurchase))
-
-	router.GET("/api/seats/:eventid/available-seats", tickets.GetAvailableSeats)
-	router.POST("/api/seats/:eventid/lock-seats", tickets.LockSeats)
-	router.POST("/api/seats/:eventid/unlock-seats", tickets.UnlockSeats)
-	router.POST("/api/seats/:eventid/ticket/:ticketid/confirm-purchase", tickets.ConfirmSeatPurchase)
-
-	router.GET("/api/suggestions/places/nearby", ratelim.RateLimit(suggestions.GetNearbyPlaces))
-	router.GET("/api/suggestions/places", ratelim.RateLimit(suggestions.SuggestionsHandler))
-	router.GET("/api/suggestions/follow", middleware.Authenticate(suggestions.SuggestFollowers))
-
-	// router.GET("/api/search/:entityType", ratelim.RateLimit(searchEvents))
-
-	router.GET("/api/reviews/:entityType/:entityId", ratelim.RateLimit(middleware.Authenticate(reviews.GetReviews)))
-	router.GET("/api/reviews/:entityType/:entityId/:reviewId", middleware.Authenticate(reviews.GetReview))
-	router.POST("/api/reviews/:entityType/:entityId", middleware.Authenticate(reviews.AddReview))
-	router.PUT("/api/reviews/:entityType/:entityId/:reviewId", middleware.Authenticate(reviews.EditReview))
-	router.DELETE("/api/reviews/:entityType/:entityId/:reviewId", middleware.Authenticate(reviews.DeleteReview))
-
-	// Set up routes with middlewares
-	router.POST("/api/media/:entitytype/:entityid", middleware.Authenticate(media.AddMedia))
-	router.GET("/api/media/:entitytype/:entityid/:id", media.GetMedia)
-	router.PUT("/api/media/:entitytype/:entityid/:id", middleware.Authenticate(media.EditMedia))
-	router.GET("/api/media/:entitytype/:entityid", ratelim.RateLimit(media.GetMedias))
-	router.DELETE("/api/media/:entitytype/:entityid/:id", middleware.Authenticate(media.DeleteMedia))
-
-	router.GET("/api/itineraries", itinerary.GetItineraries)               //Fetch all itineraries
-	router.POST("/api/itineraries", itinerary.CreateItinerary)             //Create a new itinerary
-	router.GET("/api/itineraries/all/:id", itinerary.GetItinerary)         //Fetch a single itinerary
-	router.PUT("/api/itineraries/:id", itinerary.UpdateItinerary)          //Update an itinerary
-	router.DELETE("/api/itineraries/:id", itinerary.DeleteItinerary)       //Delete an itinerary
-	router.GET("/api/itineraries/search", itinerary.SearchItineraries)     //Search an itinerary
-	router.POST("/api/itineraries/:id/fork", itinerary.ForkItinerary)      //Fork a new itinerary
-	router.PUT("/api/itineraries/:id/publish", itinerary.PublishItinerary) //Publish an itinerary
-
-	router.GET("/api/places/places", ratelim.RateLimit(places.GetPlaces))
-	router.POST("/api/places/place", middleware.Authenticate(places.CreatePlace))
-	router.GET("/api/places/place/:placeid", places.GetPlace)
-	router.PUT("/api/places/place/:placeid", middleware.Authenticate(places.EditPlace))
-	router.DELETE("/api/places/place/:placeid", middleware.Authenticate(places.DeletePlace))
-
-	router.POST("/api/places/menu/:placeid", middleware.Authenticate(menu.CreateMenu))
-	router.GET("/api/places/menu/:placeid", menu.GetMenus)
-	router.GET("/api/places/menu/:placeid/:menuid", menu.GetMenu)
-	router.PUT("/api/places/menu/:placeid/:menuid", middleware.Authenticate(menu.EditMenu))
-	router.DELETE("/api/places/menu/:placeid/:menuid", middleware.Authenticate(menu.DeleteMenu))
-
-	router.POST("/api/places/menu/:placeid/:menuid/payment-session", middleware.Authenticate(menu.CreateMenuPaymentSession))
-	router.POST("/api/places/menu/:placeid/:menuid/confirm-purchase", middleware.Authenticate(menu.ConfirmMenuPurchase))
-
-	router.GET("/api/profile/profile", middleware.Authenticate(profile.GetProfile))
-	router.PUT("/api/profile/edit", middleware.Authenticate(profile.EditProfile))
-	router.PUT("/api/profile/avatar", middleware.Authenticate(profile.EditProfilePic))
-	router.PUT("/api/profile/banner", middleware.Authenticate(profile.EditProfileBanner))
-	router.DELETE("/api/profile/delete", middleware.Authenticate(profile.DeleteProfile))
-
-	router.GET("/api/user/:username", ratelim.RateLimit(profile.GetUserProfile))
-	router.GET("/api/user/:username/data", ratelim.RateLimit(middleware.Authenticate(userdata.GetUserProfileData)))
-
-	router.PUT("/api/follows/:id", ratelim.RateLimit(middleware.Authenticate(profile.ToggleFollow)))
-	router.DELETE("/api/follows/:id", ratelim.RateLimit(middleware.Authenticate(profile.ToggleUnFollow)))
-	router.GET("/api/follows/:id/status", ratelim.RateLimit(middleware.Authenticate(profile.DoesFollow)))
-	router.GET("/api/followers/:id", ratelim.RateLimit(middleware.Authenticate(profile.GetFollowers)))
-	router.GET("/api/following/:id", ratelim.RateLimit(middleware.Authenticate(profile.GetFollowing)))
-
-	router.GET("/api/feed/feed", middleware.Authenticate(feed.GetPosts))
-	router.GET("/api/feed/post/:postid", rateLimiter.Limit(feed.GetPost))
-	router.POST("/api/check-file", rateLimiter.Limit(middleware.Authenticate(feed.CheckUserInFile)))
-	// router.POST("/api/feed/repost/:postid", feed.Repost)
-	// router.DELETE("/api/feed/repost/:postid", feed.DeleteRepost)
-	router.POST("/api/feed/post", ratelim.RateLimit(middleware.Authenticate(feed.CreateTweetPost)))
-	router.PUT("/api/feed/post/:postid", middleware.Authenticate(feed.EditPost))
-	router.DELETE("/api/feed/post/:postid", middleware.Authenticate(feed.DeletePost))
-
-	router.GET("/api/settings/init/:userid", middleware.Authenticate(settings.InitUserSettings))
-	// router.GET("/api/settings/setting/:type", getUserSettings)
-	router.GET("/api/settings/all", ratelim.RateLimit(middleware.Authenticate(settings.GetUserSettings)))
-	router.PUT("/api/settings/setting/:type", ratelim.RateLimit(middleware.Authenticate(settings.UpdateUserSetting)))
-
-	router.GET("/api/sda/sda", ratelim.RateLimit(middleware.Authenticate(ads.GetAds)))
-
-	// router.POST("/api/check-file", rateLimiter.Limit(filecheck.CheckFileExists))
-	// router.POST("/api/upload", rateLimiter.Limit(filecheck.UploadFile))
-	// router.POST("/api/feed/remhash", rateLimiter.Limit(filecheck.RemoveUserFile))
-
-	// router.POST("/agi/home_feed_section", ratelim.RateLimit(middleware.Authenticate(agi.GetHomeFeed)))
-	router.POST("/agi/home_feed_section", ratelim.RateLimit(agi.GetHomeFeed))
-
-	// CORS setup
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-	})
-
-	router.ServeFiles("/merchpic/*filepath", http.Dir("merchpic"))
-	router.ServeFiles("/menupic/*filepath", http.Dir("menupic"))
-	router.ServeFiles("/uploads/*filepath", http.Dir("uploads"))
-	router.ServeFiles("/placepic/*filepath", http.Dir("placepic"))
-	router.ServeFiles("/businesspic/*filepath", http.Dir("eventpic"))
-	router.ServeFiles("/userpic/*filepath", http.Dir("userpic"))
-	router.ServeFiles("/postpic/*filepath", http.Dir("postpic"))
-	router.ServeFiles("/eventpic/*filepath", http.Dir("eventpic"))
-	router.ServeFiles("/gigpic/*filepath", http.Dir("gigpic"))
-
-	handler := securityHeaders(c.Handler(router))
 
 	server := &http.Server{
 		Addr:    ":4000",
