@@ -29,6 +29,7 @@ func updateEventFields(r *http.Request) (bson.M, error) {
 	var eventData struct {
 		Title       string `json:"title"`
 		Date        string `json:"date"`
+		Category    string `json:"category"`
 		Location    string `json:"location"`
 		PlaceId     string `json:"placeid"`
 		PlaceName   string `json:"placename"`
@@ -41,6 +42,9 @@ func updateEventFields(r *http.Request) (bson.M, error) {
 	}
 
 	// Map the fields to updateFields
+	if eventData.Category != "" {
+		updateFields["category"] = eventData.Category
+	}
 	if eventData.Title != "" {
 		updateFields["title"] = eventData.Title
 	}
@@ -165,8 +169,8 @@ func updateEventFields(r *http.Request) (bson.M, error) {
 
 // Validate required fields
 func validateUpdateFields(updateFields bson.M) error {
-	if updateFields["title"] == "" || updateFields["location"] == "" || updateFields["description"] == "" {
-		return fmt.Errorf("title, location, and description are required")
+	if updateFields["category"] == "" || updateFields["title"] == "" || updateFields["location"] == "" || updateFields["description"] == "" {
+		return fmt.Errorf("category, title, location, and description are required")
 	}
 	return nil
 }

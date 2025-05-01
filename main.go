@@ -33,23 +33,28 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 var (
-	userCollection       *mongo.Collection
-	iternaryCollection   *mongo.Collection
-	userDataCollection   *mongo.Collection
-	ticketsCollection    *mongo.Collection
-	reviewsCollection    *mongo.Collection
-	settingsCollection   *mongo.Collection
-	followingsCollection *mongo.Collection
-	placesCollection     *mongo.Collection
-	menuCollection       *mongo.Collection
-	postsCollection      *mongo.Collection
-	merchCollection      *mongo.Collection
-	activitiesCollection *mongo.Collection
-	eventsCollection     *mongo.Collection
-	mediaCollection      *mongo.Collection
-	filesCollection      *mongo.Collection
-	artistsCollection    *mongo.Collection
-	cartoonsCollection   *mongo.Collection
+	userCollection             *mongo.Collection
+	iternaryCollection         *mongo.Collection
+	userDataCollection         *mongo.Collection
+	ticketsCollection          *mongo.Collection
+	reviewsCollection          *mongo.Collection
+	settingsCollection         *mongo.Collection
+	followingsCollection       *mongo.Collection
+	placesCollection           *mongo.Collection
+	menuCollection             *mongo.Collection
+	postsCollection            *mongo.Collection
+	merchCollection            *mongo.Collection
+	activitiesCollection       *mongo.Collection
+	eventsCollection           *mongo.Collection
+	mediaCollection            *mongo.Collection
+	filesCollection            *mongo.Collection
+	artistsCollection          *mongo.Collection
+	cartoonsCollection         *mongo.Collection
+	purchasedTicketsCollection *mongo.Collection
+	bookingsCollection         *mongo.Collection
+	slotCollection             *mongo.Collection
+	artistEventsCollection     *mongo.Collection
+	artistSongsCollection      *mongo.Collection
 )
 
 // Set up all routes and middleware layers
@@ -133,8 +138,8 @@ func main() {
 	}
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 
-	iternaryCollection = client.Database("eventdb").Collection("settings")
-	db.IternaryCollection = iternaryCollection
+	iternaryCollection = client.Database("eventdb").Collection("itinerary")
+	db.ItineraryCollection = iternaryCollection
 	settingsCollection = client.Database("eventdb").Collection("settings")
 	db.SettingsCollection = settingsCollection
 	reviewsCollection = client.Database("eventdb").Collection("reviews")
@@ -165,6 +170,17 @@ func main() {
 	db.FilesCollection = filesCollection
 	artistsCollection = client.Database("eventdb").Collection("artists")
 	db.ArtistsCollection = artistsCollection
+	purchasedTicketsCollection = client.Database("eventdb").Collection("purticks")
+	db.PurchasedTicketsCollection = purchasedTicketsCollection
+	bookingsCollection = client.Database("eventdb").Collection("bookings")
+	db.BookingsCollection = bookingsCollection
+	slotCollection = client.Database("eventdb").Collection("slots")
+	db.SlotCollection = slotCollection
+	artistEventsCollection = client.Database("eventdb").Collection("artistevents")
+	db.ArtistEventsCollection = artistEventsCollection
+	artistSongsCollection = client.Database("eventdb").Collection("songs")
+	db.ArtistSongsCollection = artistSongsCollection
+	// GigsCollection = Client.Database("eventdb").Collection("gigs")
 	cartoonsCollection = client.Database("eventdb").Collection("cartoons")
 	db.CartoonsCollection = cartoonsCollection
 	db.Client = client

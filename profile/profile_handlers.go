@@ -22,9 +22,17 @@ import (
 )
 
 // Handlers for user profile
-
 func GetUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// // Optional: Strip Bearer
+	// if strings.HasPrefix(tokenString, "Bearer ") {
+	// 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+	// }
+
 	claims, err := ValidateJWT(tokenString)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -33,18 +41,25 @@ func GetUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 
 	username := ps.ByName("username")
 
-	// Retrieve user details
 	var user structs.User
-	db.UserCollection.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
+	err = db.UserCollection.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
-	// Retrieve follow data
 	userFollow, err := GetUserFollowData(user.UserID)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Build and respond with the user profile
+	user.Online = rdx.Exists("online:" + user.UserID)
+
 	userProfile := structs.UserProfileResponse{
 		UserID:         user.UserID,
 		Username:       user.Username,
@@ -56,15 +71,62 @@ func GetUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 		Followerscount: len(userFollow.Followers),
 		Followcount:    len(userFollow.Follows),
 		IsFollowing:    utils.Contains(userFollow.Followers, claims.UserID),
+		Online:         user.Online,
+		LastLogin:      user.LastLogin,
 	}
-
-	fmt.Println("userFollow.Followers ::::: ", userFollow.Followers)
-	fmt.Println("userFollow.Follows ::::: ", userFollow.Follows)
-	fmt.Println("user.UserID ::::: ", user.UserID)
-	fmt.Println("claims.UserID ::::: ", claims.UserID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(userProfile)
+}
+
+func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// if strings.HasPrefix(tokenString, "Bearer ") {
+	// 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+	// }
+
+	claims, err := ValidateJWT(tokenString)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userFollow, err := GetUserFollowData(claims.UserID)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	var user structs.User
+	err = db.UserCollection.FindOne(context.TODO(), bson.M{"userid": claims.UserID}).Decode(&user)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	user.Password = "" // Clear password
+	user.Followerscount = len(userFollow.Followers)
+	user.Followcount = len(userFollow.Follows)
+	user.Online = rdx.Exists("online:" + user.UserID)
+
+	profileJSON, err := json.Marshal(user)
+	if err != nil {
+		http.Error(w, "Failed to encode profile", http.StatusInternalServerError)
+		return
+	}
+
+	_ = CacheProfile(claims.Username, string(profileJSON))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(profileJSON)
 }
 
 func EditProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -103,66 +165,6 @@ func EditProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if err := RespondWithUserProfile(w, claims.Username); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
-}
-
-func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	tokenString := r.Header.Get("Authorization")
-	if tokenString == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	claims, err := ValidateJWT(tokenString)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// // Check Redis cache
-	// cachedProfile, err := GetCachedProfile(claims.Username)
-	// if err == nil && cachedProfile != "" {
-	// 	w.Header().Set("Content-Type", "application/json")
-	// 	w.Write([]byte(cachedProfile))
-	// 	return
-	// }
-
-	// Retrieve follow data
-	userFollow, err := GetUserFollowData(claims.UserID)
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	// Retrieve user data
-	var user structs.User
-	err = db.UserCollection.FindOne(context.TODO(), bson.M{"userid": claims.UserID}).Decode(&user)
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	// Remove sensitive data
-	user.Password = ""
-	user.Followerscount = len(userFollow.Followers)
-	user.Followcount = len(userFollow.Follows)
-
-	// Convert user to JSON
-	profileJSON, err := json.Marshal(user)
-	if err != nil {
-		http.Error(w, "Failed to encode profile", http.StatusInternalServerError)
-		return
-	}
-
-	// Cache profile
-	_ = CacheProfile(claims.Username, string(profileJSON))
-
-	// Send response
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(profileJSON)
 }
 
 func DeleteProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

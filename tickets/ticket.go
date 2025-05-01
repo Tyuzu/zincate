@@ -139,7 +139,7 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		http.Error(w, "Invalid seatEnd value", http.StatusBadRequest)
 		return
 	}
-	seats := GenerateSeatLabels(seatStart, seatEnd, "A") // You can use "B", "C" if you want multiple rows
+	// seats := GenerateSeatLabels(seatStart, seatEnd, "A") // You can use "B", "C" if you want multiple rows
 
 	tick := structs.Ticket{
 		TicketID:   utils.GenerateID(12),
@@ -155,10 +155,10 @@ func CreateTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		Total:      quantity,
 		SeatStart:  seatStart,
 		SeatEnd:    seatEnd,
-		Seats:      seats, // 👈 Save the seat list
-		Sold:       0,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		// Seats:      seats, // 👈 Save the seat list
+		Sold:      0,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	_, err = db.TicketsCollection.InsertOne(context.TODO(), tick)
@@ -538,3 +538,50 @@ func GenerateSeatLabels(start, end int, rowPrefix string) []string {
 	}
 	return seats
 }
+
+func VerifyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	eventID := ps.ByName("eventid")
+	ticketID := ps.ByName("ticketid")
+	uniqueCode := r.URL.Query().Get("uniqueCode") // Retrieve the unique code from query parameters
+
+	// Check if the unique code is provided
+	if uniqueCode == "" {
+		http.Error(w, "Unique code is required for verification", http.StatusBadRequest)
+		return
+	}
+
+	// Query the database for the purchased ticket with the unique code
+	var purchasedTicket structs.PurchasedTicket
+	err := db.PurchasedTicketsCollection.FindOne(context.TODO(), bson.M{
+		"eventid":    eventID,
+		"ticketid":   ticketID,
+		"uniquecode": uniqueCode, // Match the unique code
+	}).Decode(&purchasedTicket)
+	if err != nil {
+		// Ticket not found or verification failed
+		http.Error(w, fmt.Sprintf("Ticket verification failed: %v", err), http.StatusNotFound)
+		return
+	}
+
+	// Respond with verification result
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"isValid": true})
+}
+
+// func VerifyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+// 	ticketID := ps.ByName("ticketid")
+
+// 	// Query the database for the ticket
+// 	var ticket structs.Ticket
+// 	err := db.PurchasedTicketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
+// 	if err != nil {
+// 		// Ticket not found
+// 		http.Error(w, fmt.Sprintf("Ticket verification failed: %v", err), http.StatusNotFound)
+// 		return
+// 	}
+
+//		// Respond with verification result
+//		w.Header().Set("Content-Type", "application/json")
+//		json.NewEncoder(w).Encode(map[string]bool{"isValid": true})
+//	}

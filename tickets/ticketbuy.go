@@ -12,8 +12,10 @@ import (
 	"naevis/stripe"
 	"naevis/structs"
 	"naevis/userdata"
+	"naevis/utils"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
@@ -162,8 +164,9 @@ type TicketPurchaseRequest struct {
 
 // TicketPurchaseResponse represents the response body for ticket purchase confirmation
 type TicketPurchaseResponse struct {
-	Message string `json:"message"`
-	Success string `json:"success"`
+	Message    string `json:"message"`
+	Success    string `json:"success"`
+	UniqueCode string `json:"uniquecode"`
 }
 
 // ProcessTicketPayment simulates the payment processing logic
@@ -217,21 +220,17 @@ func ConfirmTicketPurchase(w http.ResponseWriter, r *http.Request, _ httprouter.
 	}
 }
 
-// Buy Ticket
 func buyxTicket(w http.ResponseWriter, r *http.Request, request TicketPurchaseRequest) {
 	eventID := request.EventID
 	ticketID := request.TicketID
 	quantityRequested := request.Quantity
 
-	// Retrieve the ID of the requesting user from the context
 	requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "Invalid user", http.StatusBadRequest)
 		return
 	}
 
-	// Find the ticket in the database
-	// collection := client.Database("eventdb").Collection("ticks")
 	var ticket structs.Ticket
 	err := db.TicketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
 	if err != nil {
@@ -239,48 +238,210 @@ func buyxTicket(w http.ResponseWriter, r *http.Request, request TicketPurchaseRe
 		return
 	}
 
-	// Check if there are tickets available
-	if ticket.Quantity <= 0 {
-		http.Error(w, "No tickets available for purchase", http.StatusBadRequest)
-		return
-	}
-
-	// Check if the requested quantity is available
 	if ticket.Quantity < quantityRequested {
 		http.Error(w, "Not enough tickets available for purchase", http.StatusBadRequest)
 		return
 	}
 
-	// Decrease the ticket quantity
-	update := bson.M{"$inc": bson.M{"quantity": -quantityRequested}}
-	_, err = db.TicketsCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}, update)
+	_, err = db.TicketsCollection.UpdateOne(context.TODO(),
+		bson.M{"eventid": eventID, "ticketid": ticketID},
+		bson.M{"$inc": bson.M{"quantity": -quantityRequested}},
+	)
 	if err != nil {
 		http.Error(w, "Failed to update ticket quantity", http.StatusInternalServerError)
 		return
 	}
 
-	// // Respond with success
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
-	// json.NewEncoder(w).Encode(map[string]interface{}{
-	// 	"success": true,
-	// 	"message": "Ticket purchased successfully",
-	// })
+	var purchasedDocs []interface{}
+	var userDataDocs []structs.UserData
+	var uniqueCodes []string
+	now := time.Now()
+	createdAt := now.Format(time.RFC3339)
 
-	m := mq.Index{}
-	mq.Notify("ticket-bought", m)
+	for i := 0; i < quantityRequested; i++ {
+		uniqueCode := utils.GetUUID()
+		uniqueCodes = append(uniqueCodes, uniqueCode)
 
-	userdata.SetUserData("ticket", ticketID, requestingUserID)
+		purchasedDocs = append(purchasedDocs, structs.PurchasedTicket{
+			EventID:      eventID,
+			TicketID:     ticketID,
+			UserID:       requestingUserID,
+			UniqueCode:   uniqueCode,
+			PurchaseDate: now,
+		})
 
-	// Respond with a success message
-	response := TicketPurchaseResponse{
-		Message: "Payment successfully processed. Ticket purchased.",
-		Success: "true",
+		userDataDocs = append(userDataDocs, structs.UserData{
+			EntityID:   uniqueCode,
+			EntityType: "ticket",
+			UserID:     requestingUserID,
+			CreatedAt:  createdAt,
+		})
 	}
+
+	_, err = db.PurchasedTicketsCollection.InsertMany(context.TODO(), purchasedDocs)
+	if err != nil {
+		http.Error(w, "Failed to store purchased tickets", http.StatusInternalServerError)
+		return
+	}
+
+	userdata.AddUserDataBatch(userDataDocs)
+
+	mq.Notify("ticket-bought", mq.Index{})
+
+	response := struct {
+		Message     string   `json:"message"`
+		Success     string   `json:"success"`
+		UniqueCodes []string `json:"uniqueCodes"`
+	}{
+		Message:     "Payment successfully processed. Tickets purchased.",
+		Success:     "true",
+		UniqueCodes: uniqueCodes,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+// // Buy Ticket
+// func buyxTicket(w http.ResponseWriter, r *http.Request, request TicketPurchaseRequest) {
+// 	eventID := request.EventID
+// 	ticketID := request.TicketID
+// 	quantityRequested := request.Quantity
+
+// 	// Retrieve the ID of the requesting user from the context
+// 	requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
+// 	if !ok {
+// 		http.Error(w, "Invalid user", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Find the ticket in the database
+// 	var ticket structs.Ticket
+// 	err := db.TicketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
+// 	if err != nil {
+// 		http.Error(w, "Ticket not found or other error", http.StatusNotFound)
+// 		return
+// 	}
+
+// 	// Check if there are tickets available
+// 	if ticket.Quantity <= 0 {
+// 		http.Error(w, "No tickets available for purchase", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Check if the requested quantity is available
+// 	if ticket.Quantity < quantityRequested {
+// 		http.Error(w, "Not enough tickets available for purchase", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Decrease the ticket quantity
+// 	update := bson.M{"$inc": bson.M{"quantity": -quantityRequested}}
+// 	_, err = db.TicketsCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}, update)
+// 	if err != nil {
+// 		http.Error(w, "Failed to update ticket quantity", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Generate a unique code for the ticket
+// 	uniqueCode := utils.GetUUID() // Generate unique ID
+
+// 	// Store the unique code in the database (optional: create a separate collection for purchased tickets)
+// 	purchasedTicket := structs.PurchasedTicket{
+// 		EventID:      eventID,
+// 		TicketID:     ticketID,
+// 		UserID:       requestingUserID,
+// 		UniqueCode:   uniqueCode,
+// 		PurchaseDate: time.Now(),
+// 	}
+// 	_, err = db.PurchasedTicketsCollection.InsertOne(context.TODO(), purchasedTicket)
+// 	if err != nil {
+// 		http.Error(w, "Failed to store purchased ticket", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Notify other systems about the ticket purchase
+// 	m := mq.Index{}
+// 	mq.Notify("ticket-bought", m)
+
+// 	userdata.SetUserData("ticket", uniqueCode, requestingUserID)
+
+// 	// Respond with a success message and the unique code
+// 	response := TicketPurchaseResponse{
+// 		Message:    "Payment successfully processed. Ticket purchased.",
+// 		Success:    "true",
+// 		UniqueCode: uniqueCode,
+// 	}
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(response)
+// }
+
+// // Buy Ticket
+// func buyxTicket(w http.ResponseWriter, r *http.Request, request TicketPurchaseRequest) {
+// 	eventID := request.EventID
+// 	ticketID := request.TicketID
+// 	quantityRequested := request.Quantity
+
+// 	// Retrieve the ID of the requesting user from the context
+// 	requestingUserID, ok := r.Context().Value(globals.UserIDKey).(string)
+// 	if !ok {
+// 		http.Error(w, "Invalid user", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Find the ticket in the database
+// 	// collection := client.Database("eventdb").Collection("ticks")
+// 	var ticket structs.Ticket
+// 	err := db.TicketsCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
+// 	if err != nil {
+// 		http.Error(w, "Ticket not found or other error", http.StatusNotFound)
+// 		return
+// 	}
+
+// 	// Check if there are tickets available
+// 	if ticket.Quantity <= 0 {
+// 		http.Error(w, "No tickets available for purchase", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Check if the requested quantity is available
+// 	if ticket.Quantity < quantityRequested {
+// 		http.Error(w, "Not enough tickets available for purchase", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Decrease the ticket quantity
+// 	update := bson.M{"$inc": bson.M{"quantity": -quantityRequested}}
+// 	_, err = db.TicketsCollection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}, update)
+// 	if err != nil {
+// 		http.Error(w, "Failed to update ticket quantity", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// // Respond with success
+// 	// w.Header().Set("Content-Type", "application/json")
+// 	// w.WriteHeader(http.StatusOK)
+// 	// json.NewEncoder(w).Encode(map[string]interface{}{
+// 	// 	"success": true,
+// 	// 	"message": "Ticket purchased successfully",
+// 	// })
+
+// 	m := mq.Index{}
+// 	mq.Notify("ticket-bought", m)
+
+// 	userdata.SetUserData("ticket", ticketID, requestingUserID)
+
+// 	// Respond with a success message
+// 	response := TicketPurchaseResponse{
+// 		Message: "Payment successfully processed. Ticket purchased.",
+// 		Success: "true",
+// 	}
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(response)
+// }
 
 // Get Available Seats
 func GetAvailableSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {

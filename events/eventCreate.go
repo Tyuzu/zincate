@@ -70,6 +70,18 @@ func CreateEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	// Parse attached artists (optional)
+	var artistIDs []string
+	artistsData := r.FormValue("artists")
+	if artistsData != "" {
+		if err := json.Unmarshal([]byte(artistsData), &artistIDs); err != nil {
+			log.Println("Error parsing artist IDs:", err)
+			http.Error(w, "Invalid artists data", http.StatusBadRequest)
+			return
+		}
+		event.Artists = artistIDs
+	}
+
 	// Handle the banner image upload (if present)
 	bannerFile, _, err := r.FormFile("banner")
 	if err != nil && err != http.ErrMissingFile {

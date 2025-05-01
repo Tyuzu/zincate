@@ -18,17 +18,32 @@ import (
 
 // Itinerary represents the travel itinerary
 type Itinerary struct {
-	ItineraryID string   `json:"itineraryid" bson:"itineraryid,omitempty"`
-	UserID      string   `json:"user_id" bson:"user_id"`
-	Name        string   `json:"name" bson:"name"`
-	Description string   `json:"description" bson:"description"`
-	StartDate   string   `json:"start_date" bson:"start_date"`
-	EndDate     string   `json:"end_date" bson:"end_date"`
-	Locations   []string `json:"locations" bson:"locations"`
-	Status      string   `json:"status" bson:"status"` // Draft/Confirmed
-	Published   bool     `json:"published" bson:"published"`
-	ForkedFrom  *string  `json:"forked_from,omitempty" bson:"forked_from,omitempty"`
-	Deleted     bool     `json:"-" bson:"deleted,omitempty"` // Internal use only
+	ItineraryID string  `json:"itineraryid" bson:"itineraryid,omitempty"`
+	UserID      string  `json:"user_id" bson:"user_id"`
+	Name        string  `json:"name" bson:"name"`
+	Description string  `json:"description" bson:"description"`
+	StartDate   string  `json:"start_date" bson:"start_date"`
+	EndDate     string  `json:"end_date" bson:"end_date"`
+	Status      string  `json:"status" bson:"status"` // Draft/Confirmed
+	Published   bool    `json:"published" bson:"published"`
+	ForkedFrom  *string `json:"forked_from,omitempty" bson:"forked_from,omitempty"`
+	Deleted     bool    `json:"-" bson:"deleted,omitempty"` // Internal use only
+	// the new day-by-day schedule
+	Days []Day `json:"days" bson:"days"`
+}
+
+// add these at the top, just below package declaration
+type Visit struct {
+	Location  string `json:"location" bson:"location"`
+	StartTime string `json:"start_time" bson:"start_time"`
+	EndTime   string `json:"end_time" bson:"end_time"`
+	// nil for the very first visit of a day
+	Transport *string `json:"transport,omitempty" bson:"transport,omitempty"`
+}
+
+type Day struct {
+	Date   string  `json:"date" bson:"date"`
+	Visits []Visit `json:"visits" bson:"visits"`
 }
 
 // Utility function to extract user ID from JWT
@@ -160,9 +175,9 @@ func UpdateItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 		"description": updated.Description,
 		"start_date":  updated.StartDate,
 		"end_date":    updated.EndDate,
-		"locations":   updated.Locations,
 		"status":      updated.Status,
 		"published":   updated.Published,
+		"days":        updated.Days,
 	}}
 
 	_, err = db.ItineraryCollection.UpdateOne(ctx, bson.M{"itineraryid": itineraryID}, update)
@@ -236,7 +251,7 @@ func ForkItinerary(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		Description: original.Description,
 		StartDate:   original.StartDate,
 		EndDate:     original.EndDate,
-		Locations:   original.Locations,
+		Days:        original.Days,
 		Status:      "Draft",
 		Published:   false,
 		ForkedFrom:  &originalID,
@@ -286,7 +301,8 @@ func SearchItineraries(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		filter["start_date"] = start
 	}
 	if location := query.Get("location"); location != "" {
-		filter["locations"] = bson.M{"$in": []string{location}}
+		// filter["locations"] = bson.M{"$in": []string{location}}
+		filter["days.visits.location"] = bson.M{"$in": []string{location}}
 	}
 	if status := query.Get("status"); status != "" {
 		filter["status"] = status

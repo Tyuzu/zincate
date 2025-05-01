@@ -8,25 +8,26 @@ import (
 
 type User struct {
 	// ID          string    `json:"-" bson:"_id,omitempty"`
-	UserID         string            `json:"userid" bson:"userid"`
-	Username       string            `json:"username" bson:"username"`
-	Email          string            `json:"email" bson:"email"`
-	Password       string            `json:"-" bson:"password"`
-	Role           string            `json:"role" bson:"role"`
-	Name           string            `json:"name,omitempty" bson:"name,omitempty"`
-	CreatedAt      time.Time         `json:"created_at" bson:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at" bson:"updated_at"`
-	PhoneNumber    string            `json:"phone_number,omitempty" bson:"phone_number,omitempty"`
-	Bio            string            `json:"bio,omitempty" bson:"bio,omitempty"`
-	IsActive       bool              `json:"is_active" bson:"is_active"`
-	LastLogin      time.Time         `json:"last_login,omitempty" bson:"last_login,omitempty"`
-	ProfilePicture string            `json:"profile_picture" bson:"profile_picture"`
-	BannerPicture  string            `json:"banner_picture" bson:"banner_picture"`
-	ProfileViews   int               `json:"profile_views,omitempty" bson:"profile_views,omitempty"`
-	Address        string            `json:"address,omitempty" bson:"address,omitempty"`
-	DateOfBirth    time.Time         `json:"date_of_birth,omitempty" bson:"date_of_birth,omitempty"`
+	UserID         string    `json:"userid" bson:"userid"`
+	Username       string    `json:"username" bson:"username"`
+	Email          string    `json:"email" bson:"email"`
+	Password       string    `json:"-" bson:"password"`
+	Role           string    `json:"role" bson:"role"`
+	Name           string    `json:"name,omitempty" bson:"name,omitempty"`
+	CreatedAt      time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at" bson:"updated_at"`
+	Bio            string    `json:"bio,omitempty" bson:"bio,omitempty"`
+	Online         bool      `json:"online"`
+	LastLogin      time.Time `json:"last_login" bson:"last_login"`
+	ProfilePicture string    `json:"profile_picture" bson:"profile_picture"`
+	BannerPicture  string    `json:"banner_picture" bson:"banner_picture"`
+	ProfileViews   int       `json:"profile_views,omitempty" bson:"profile_views,omitempty"`
+	PhoneNumber    string    `json:"phone_number,omitempty" bson:"phone_number,omitempty"`
+	Address        string    `json:"address,omitempty" bson:"address,omitempty"`
+	// DateOfBirth    time.Time         `json:"dob" bson:"dob"`
 	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
 	IsVerified     bool              `json:"is_verified" bson:"is_verified"`
+	EmailVerified  bool              `json:"email_verified" bson:"email_verified"`
 	PasswordHash   string            `json:"password_hash" bson:"password_hash"`
 	Followerscount int               `json:"followerscount" bson:"followerscount"`
 	Followcount    int               `json:"followscount" bson:"followscount"`
@@ -46,6 +47,8 @@ type UserProfileResponse struct {
 	Followerscount int               `json:"followerscount" bson:"followerscount"`
 	Followcount    int               `json:"followscount" bson:"followscount"`
 	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
+	Online         bool              `json:"online,omitempty"`
+	LastLogin      time.Time         `json:"last_login" bson:"last_login"`
 }
 
 type UserFollow struct {
@@ -133,14 +136,14 @@ type Activity struct {
 }
 
 type Merch struct {
-	MerchID     string             `json:"merchid" bson:"merchid"`
-	EventID     string             `json:"eventid" bson:"eventid"` // Reference to Event ID
+	MerchID string `json:"merchid" bson:"merchid"`
+	// EventID     string             `json:"eventid" bson:"eventid"` // Reference to Event ID
 	Name        string             `json:"name" bson:"name"`
 	Price       float64            `json:"price" bson:"price"`
 	Stock       int                `json:"stock" bson:"stock"` // Number of items available
 	MerchPhoto  string             `json:"merch_pic" bson:"merch_pic"`
 	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	EntityID    primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	EntityID    string             `json:"entity_id" bson:"entity_id"`
 	EntityType  string             `json:"entity_type" bson:"entity_type"` // "event" or "place"
 	Description string             `json:"description,omitempty" bson:"description,omitempty"`
 	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
@@ -413,6 +416,8 @@ type Event struct {
 	CustomFields      map[string]any    `json:"custom_fields" bson:"custom_fields"`
 	SocialMediaLinks  map[string]string `json:"social_links" bson:"social_links"` // Changed to a map for better structure
 	AccessibilityInfo string            `json:"accessibility_info" bson:"accessibility_info"`
+	Artists           []string          `bson:"artists,omitempty" json:"artists,omitempty"` // ✅ Add this
+	Published         string            `bson:"published,omitempty" json:"published,omitempty"`
 }
 
 // type FAQ struct {
@@ -424,6 +429,15 @@ type Event struct {
 type FAQ struct {
 	Title   string `json:"title"`
 	Content string `json:"content"`
+}
+
+type PurchasedTicket struct {
+	EventID      string
+	TicketID     string
+	UserID       string
+	BuyerName    string
+	UniqueCode   string
+	PurchaseDate time.Time
 }
 
 type Gig struct {

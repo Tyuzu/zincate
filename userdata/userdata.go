@@ -116,3 +116,17 @@ func GetUserProfileData(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 		return
 	}
 }
+
+func AddUserDataBatch(docs []structs.UserData) {
+	var toInsert []interface{}
+	for _, doc := range docs {
+		toInsert = append(toInsert, doc)
+	}
+	if len(toInsert) == 0 {
+		return
+	}
+	_, err := db.UserDataCollection.InsertMany(context.TODO(), toInsert)
+	if err != nil {
+		log.Printf("Error inserting batch user data: %v", err)
+	}
+}

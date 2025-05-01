@@ -26,6 +26,7 @@ var merchUploadPath string = "./static/merchpic"
 // Function to handle the creation of merchandise
 func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
+	entityType := ps.ByName("entityType")
 	if eventID == "" {
 		http.Error(w, "Event ID is required", http.StatusBadRequest)
 		return
@@ -60,13 +61,15 @@ func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	// Create a new Merch instance
 	merch := structs.Merch{
-		EventID:   eventID,
-		Name:      name,
-		Price:     price,
-		Stock:     stock,
-		MerchID:   utils.GenerateID(14), // Generate unique merchandise ID
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		// EventID:    eventID,
+		EntityType: entityType,
+		EntityID:   eventID,
+		Name:       name,
+		Price:      price,
+		Stock:      stock,
+		MerchID:    utils.GenerateID(14), // Generate unique merchandise ID
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 	}
 
 	// Handle banner file upload
@@ -137,28 +140,33 @@ func CreateMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 func GetMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	merchID := ps.ByName("merchid")
-	cacheKey := fmt.Sprintf("merch:%s:%s", eventID, merchID)
+	entityType := ps.ByName("entityType")
 
-	// Check if the merch is cached
-	cachedMerch, err := rdx.RdxGet(cacheKey)
-	if err == nil && cachedMerch != "" {
-		// Return cached data
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(cachedMerch))
-		return
-	}
+	fmt.Println(entityType, eventID, merchID)
+
+	// cacheKey := fmt.Sprintf("merch:%s:%s", eventID, merchID)
+
+	// // Check if the merch is cached
+	// cachedMerch, err := rdx.RdxGet(cacheKey)
+	// if err == nil && cachedMerch != "" {
+	// 	// Return cached data
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.Write([]byte(cachedMerch))
+	// 	return
+	// }
 
 	// collection := client.Database("eventdb").Collection("merch")
 	var merch structs.Merch
-	err = db.MerchCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}).Decode(&merch)
+	err := db.MerchCollection.FindOne(context.TODO(), bson.M{"entity_type": entityType, "entity_id": eventID, "merchid": merchID}).Decode(&merch)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Merchandise not found: %v", err), http.StatusNotFound)
+		// http.Error(w, fmt.Sprintf("Merchandise not found: %v", err), http.StatusNotFound)
+		utils.RespondWithJSON(w, 404, "")
 		return
 	}
 
-	// Cache the result
-	merchJSON, _ := json.Marshal(merch)
-	rdx.RdxSet(cacheKey, string(merchJSON))
+	// // Cache the result
+	// merchJSON, _ := json.Marshal(merch)
+	// rdx.RdxSet(cacheKey, string(merchJSON))
 
 	// Respond with merch data
 	w.Header().Set("Content-Type", "application/json")
@@ -168,20 +176,22 @@ func GetMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 // Fetch a list of merchandise items
 func GetMerchs(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
+	entityType := ps.ByName("entityType")
 	cacheKey := fmt.Sprintf("merchlist:%s", eventID)
 
-	// Check if the merch list is cached
-	cachedMerchs, err := rdx.RdxGet(cacheKey)
-	if err == nil && cachedMerchs != "" {
-		// Return cached list
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(cachedMerchs))
-		return
-	}
+	fmt.Println(eventID, entityType)
+	// // Check if the merch list is cached
+	// cachedMerchs, err := rdx.RdxGet(cacheKey)
+	// if err == nil && cachedMerchs != "" {
+	// 	// Return cached list
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.Write([]byte(cachedMerchs))
+	// 	return
+	// }
 
 	// collection := client.Database("eventdb").Collection("merch")
 	var merchList []structs.Merch
-	filter := bson.M{"eventid": eventID}
+	filter := bson.M{"entity_type": entityType, "entity_id": eventID}
 
 	cursor, err := db.MerchCollection.Find(context.Background(), filter)
 	if err != nil {
@@ -221,6 +231,7 @@ func GetMerchs(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 func EditMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	merchID := ps.ByName("merchid")
+	entityType := ps.ByName("entityType")
 
 	// Parse the request body
 	var merch structs.Merch
@@ -251,7 +262,7 @@ func EditMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// collection := client.Database("eventdb").Collection("merch")
 	updateResult, err := db.MerchCollection.UpdateOne(
 		context.TODO(),
-		bson.M{"eventid": eventID, "merchid": merchID},
+		bson.M{"entity_type": entityType, "entity_id": eventID, "merchid": merchID},
 		bson.M{"$set": updateFields},
 	)
 	if err != nil {
@@ -268,7 +279,7 @@ func EditMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Invalidate the specific merch cache
 	rdx.RdxDel(fmt.Sprintf("merch:%s:%s", eventID, merchID))
 
-	m := mq.Index{EntityType: "merch", EntityId: merchID, Method: "PUT", ItemType: "event", ItemId: eventID}
+	m := mq.Index{EntityType: "merch", EntityId: merchID, Method: "PUT", ItemType: entityType, ItemId: eventID}
 	go mq.Emit("merch-edited", m)
 
 	// Send response
@@ -288,10 +299,11 @@ func EditMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 func DeleteMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	merchID := ps.ByName("merchid")
+	entityType := ps.ByName("entityType")
 
 	// Delete the merch from MongoDB
 	// collection := client.Database("eventdb").Collection("merch")
-	deleteResult, err := db.MerchCollection.DeleteOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID})
+	deleteResult, err := db.MerchCollection.DeleteOne(context.TODO(), bson.M{"entity_type": entityType, "entity_id": eventID, "merchid": merchID})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to delete merchandise: %v", err), http.StatusInternalServerError)
 		return
@@ -344,7 +356,7 @@ func BuyMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Find the merch in the database
 	// collection := client.Database("eventdb").Collection("merch")
 	var merch structs.Merch // Define the Merch struct based on your schema
-	err = db.MerchCollection.FindOne(context.TODO(), bson.M{"eventid": eventID, "merchid": merchID}).Decode(&merch)
+	err = db.MerchCollection.FindOne(context.TODO(), bson.M{"entity_id": eventID, "merchid": merchID}).Decode(&merch)
 	if err != nil {
 		http.Error(w, "Merch not found or other error", http.StatusNotFound)
 		return

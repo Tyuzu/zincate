@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -131,4 +132,19 @@ func RdxAppend(key, value string) error {
 		return fmt.Errorf("error while doing APPEND command in redis : %v", err)
 	}
 	return err
+}
+
+func SetWithExpiry(key, value string, exptime time.Duration) error {
+	ctx := context.Background()
+	_, err := Conn.Set(ctx, key, value, exptime).Result()
+	if err != nil {
+		return fmt.Errorf("error while SetWithExpiry in redis : %v", err)
+	}
+	return err
+}
+
+func Exists(key string) bool {
+	ctx := context.Background()
+	exists, _ := Conn.Exists(ctx, key).Result()
+	return exists > 0
 }

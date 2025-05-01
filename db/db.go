@@ -5,31 +5,35 @@ import (
 )
 
 var (
-	UserCollection       *mongo.Collection
-	IternaryCollection   *mongo.Collection
-	UserDataCollection   *mongo.Collection
-	TicketsCollection    *mongo.Collection
-	ReviewsCollection    *mongo.Collection
-	SettingsCollection   *mongo.Collection
-	FollowingsCollection *mongo.Collection
-	PlacesCollection     *mongo.Collection
-	ArtistsCollection    *mongo.Collection
-	CartoonsCollection   *mongo.Collection
+	MapsCollection             *mongo.Collection
+	UserCollection             *mongo.Collection
+	ItineraryCollection        *mongo.Collection
+	UserDataCollection         *mongo.Collection
+	TicketsCollection          *mongo.Collection
+	PurchasedTicketsCollection *mongo.Collection
+	ReviewsCollection          *mongo.Collection
+	SettingsCollection         *mongo.Collection
+	FollowingsCollection       *mongo.Collection
+	PlacesCollection           *mongo.Collection
 	// BusinessesCollection *mongo.Collection
-	// BookingsCollection   *mongo.Collection
+	SlotCollection     *mongo.Collection
+	BookingsCollection *mongo.Collection
 	// MenusCollection      *mongo.Collection
 	// PromotionsCollection *mongo.Collection
 	// OwnersCollection     *mongo.Collection
 	PostsCollection *mongo.Collection
 	FilesCollection *mongo.Collection
 	// SeatsCollection      *mongo.Collection
-	MerchCollection      *mongo.Collection
-	MenuCollection       *mongo.Collection
-	ItineraryCollection  *mongo.Collection
-	ActivitiesCollection *mongo.Collection
-	EventsCollection     *mongo.Collection
+	MerchCollection        *mongo.Collection
+	MenuCollection         *mongo.Collection
+	ActivitiesCollection   *mongo.Collection
+	EventsCollection       *mongo.Collection
+	ArtistEventsCollection *mongo.Collection
+	ArtistSongsCollection  *mongo.Collection
 	// GigsCollection       *mongo.Collection
-	MediaCollection *mongo.Collection
+	MediaCollection    *mongo.Collection
+	ArtistsCollection  *mongo.Collection
+	CartoonsCollection *mongo.Collection
 	// BlogCollection       *mongo.Collection
 	Client *mongo.Client
 )

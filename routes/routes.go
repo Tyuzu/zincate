@@ -6,7 +6,9 @@ import (
 	"naevis/agi"
 	"naevis/artists"
 	"naevis/auth"
+	"naevis/booking"
 	"naevis/cartoons"
+	"naevis/comments"
 	"naevis/events"
 	"naevis/feed"
 	"naevis/itinerary"
@@ -48,11 +50,29 @@ func AddActivityRoutes(router *httprouter.Router) {
 
 }
 
+func AddCommentsRoutes(router *httprouter.Router) {
+	router.POST("/api/comments/:entitytype/:entityid", comments.CreateComment)
+	router.GET("/api/comments/:entitytype/:entityid", comments.GetComments)
+	router.PUT("/api/comments/:entitytype/:entityid/:commentid", comments.UpdateComment)
+	router.DELETE("/api/comments/:entitytype/:entityid/:commentid", comments.DeleteComment)
+}
+
 func AddAuthRoutes(router *httprouter.Router) {
 	router.POST("/api/auth/register", ratelim.RateLimit(auth.Register))
 	router.POST("/api/auth/login", ratelim.RateLimit(auth.Login))
 	router.POST("/api/auth/logout", middleware.Authenticate(auth.LogoutUser))
 	router.POST("/api/auth/token/refresh", ratelim.RateLimit(middleware.Authenticate(auth.RefreshToken)))
+
+	router.POST("/api/auth/verify-otp", ratelim.RateLimit(auth.VerifyOTPHandler))
+	router.POST("/api/auth/request-otp", ratelim.RateLimit(auth.VerifyOTPHandler))
+}
+
+func AddBookingRoutes(router *httprouter.Router) {
+	router.POST("/api/slots", ratelim.RateLimit(booking.AddSlot))
+	router.DELETE("/api/slots/:date/:time", ratelim.RateLimit(booking.DeleteSlot))
+	router.GET("/api/slots/:date", middleware.Authenticate(booking.GetSlotsByDate))
+	router.GET("/api/bookings/:date", ratelim.RateLimit(middleware.Authenticate(booking.GetBookingsByDate)))
+	router.POST("/api/bookings", ratelim.RateLimit(middleware.Authenticate(booking.CreateBooking)))
 }
 
 func AddEventsRoutes(router *httprouter.Router) {
@@ -63,19 +83,18 @@ func AddEventsRoutes(router *httprouter.Router) {
 	router.PUT("/api/events/event/:eventid", middleware.Authenticate(events.EditEvent))
 	router.DELETE("/api/events/event/:eventid", middleware.Authenticate(events.DeleteEvent))
 	router.POST("/api/events/event/:eventid/faqs", events.AddFAQs)
-
 }
 
 func AddMerchRoutes(router *httprouter.Router) {
-	router.POST("/api/merch/event/:eventid", middleware.Authenticate(merch.CreateMerch))
-	router.POST("/api/merch/event/:eventid/:merchid/buy", ratelim.RateLimit(middleware.Authenticate(merch.BuyMerch)))
-	router.GET("/api/merch/event/:eventid", merch.GetMerchs)
-	router.GET("/api/merch/event/:eventid/:merchid", merch.GetMerch)
-	router.PUT("/api/merch/event/:eventid/:merchid", middleware.Authenticate(merch.EditMerch))
-	router.DELETE("/api/merch/event/:eventid/:merchid", middleware.Authenticate(merch.DeleteMerch))
+	router.POST("/api/merch/:entityType/:eventid", middleware.Authenticate(merch.CreateMerch))
+	router.POST("/api/merch/:entityType/:eventid/:merchid/buy", ratelim.RateLimit(middleware.Authenticate(merch.BuyMerch)))
+	router.GET("/api/merch/:entityType/:eventid", merch.GetMerchs)
+	router.GET("/api/merch/:entityType/:eventid/:merchid", merch.GetMerch)
+	router.PUT("/api/merch/:entityType/:eventid/:merchid", middleware.Authenticate(merch.EditMerch))
+	router.DELETE("/api/merch/:entityType/:eventid/:merchid", middleware.Authenticate(merch.DeleteMerch))
 
-	router.POST("/api/merch/event/:eventid/:merchid/payment-session", middleware.Authenticate(merch.CreateMerchPaymentSession))
-	router.POST("/api/merch/event/:eventid/:merchid/confirm-purchase", middleware.Authenticate(merch.ConfirmMerchPurchase))
+	router.POST("/api/merch/:entityType/:eventid/:merchid/payment-session", middleware.Authenticate(merch.CreateMerchPaymentSession))
+	router.POST("/api/merch/:entityType/:eventid/:merchid/confirm-purchase", middleware.Authenticate(merch.ConfirmMerchPurchase))
 
 }
 
@@ -86,6 +105,8 @@ func AddTicketRoutes(router *httprouter.Router) {
 	router.PUT("/api/ticket/event/:eventid/:ticketid", middleware.Authenticate(tickets.EditTicket))
 	router.DELETE("/api/ticket/event/:eventid/:ticketid", middleware.Authenticate(tickets.DeleteTicket))
 	router.POST("/api/ticket/event/:eventid/:ticketid/buy", middleware.Authenticate(tickets.BuyTicket))
+	router.GET("/api/ticket/verify/:eventid/:ticketid", tickets.VerifyTicket)
+	router.GET("/api/ticket/print/:eventid/:ticketid", tickets.PrintTicket)
 
 	// router.POST("/api/ticket/confirm-purchase", middleware.Authenticate(ConfirmTicketPurchase))
 	router.POST("/api/ticket/event/:eventid/:ticketid/payment-session", middleware.Authenticate(tickets.CreateTicketPaymentSession))
@@ -163,10 +184,24 @@ func AddProfileRoutes(router *httprouter.Router) {
 func AddArtistRoutes(router *httprouter.Router) {
 	router.GET("/api/artists", artists.GetAllArtists)
 	router.GET("/api/artists/:id", artists.GetArtistByID)
+	router.DELETE("/api/artists/:id", artists.DeleteArtistByID)
 	router.GET("/api/events/event/:eventid/artists", artists.GetArtistsByEvent)
 	router.POST("/api/artists", artists.CreateArtist)
 	router.PUT("/api/artists/:id", artists.UpdateArtist)
 
+	router.GET("/api/artists/:id/songs", artists.GetArtistsSongs)
+	router.POST("/api/artists/:id/songs", artists.PostNewSong)
+	router.DELETE("/api/artists/:id/songs/:songId", artists.DeleteSong)
+	router.POST("/api/artists/:id/songs/:songId/edit", artists.EditSong) // ← new route
+
+	router.GET("/api/artists/:id/albums", artists.GetArtistsAlbums)
+	router.GET("/api/artists/:id/posts", artists.GetArtistsPosts)
+	router.GET("/api/artists/:id/merch", artists.GetArtistsMerch)
+
+	router.GET("/api/artists/:id/events", artists.GetArtistEvents)
+	router.POST("/api/artists/:id/events", artists.CreateArtistEvent)
+	router.PUT("/api/artists/:id/events", artists.UpdateArtistEvent)
+	router.DELETE("/api/artists/:id/events", artists.DeleteArtistEvent)
 }
 
 func AddCartoonRoutes(router *httprouter.Router) {

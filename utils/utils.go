@@ -120,7 +120,7 @@ func CreateThumb(filename string, fileLocation string, fileType string, thumbWid
 		return err
 	}
 
-	bgColor := color.White // Use Transparent if preferred
+	bgColor := color.Transparent // Use Transparent if preferred
 
 	// Open the original image
 	img, err := imaging.Open(inputPath)
