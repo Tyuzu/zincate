@@ -19,7 +19,6 @@ type Artist struct {
 	Socials  map[string]string `bson:"socials" json:"socials"`
 	EventIDs []string          `bson:"events" json:"events"`
 	Members  []BandMember      `bson:"members,omitempty" json:"members,omitempty"` // ✅ ADD THIS
-	Deleted  bool              `bson:"deleted" json:"deleted"`
 }
 
 type BandMember struct {

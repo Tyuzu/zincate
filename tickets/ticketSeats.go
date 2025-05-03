@@ -6,6 +6,7 @@ import (
 	"naevis/db"
 	"naevis/structs"
 	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"

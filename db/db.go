@@ -1,6 +1,8 @@
 package db
 
 import (
+	"context"
+
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -15,25 +17,22 @@ var (
 	SettingsCollection         *mongo.Collection
 	FollowingsCollection       *mongo.Collection
 	PlacesCollection           *mongo.Collection
-	// BusinessesCollection *mongo.Collection
-	SlotCollection     *mongo.Collection
-	BookingsCollection *mongo.Collection
-	// MenusCollection      *mongo.Collection
-	// PromotionsCollection *mongo.Collection
-	// OwnersCollection     *mongo.Collection
-	PostsCollection *mongo.Collection
-	FilesCollection *mongo.Collection
-	// SeatsCollection      *mongo.Collection
-	MerchCollection        *mongo.Collection
-	MenuCollection         *mongo.Collection
-	ActivitiesCollection   *mongo.Collection
-	EventsCollection       *mongo.Collection
-	ArtistEventsCollection *mongo.Collection
-	ArtistSongsCollection  *mongo.Collection
-	// GigsCollection       *mongo.Collection
-	MediaCollection    *mongo.Collection
-	ArtistsCollection  *mongo.Collection
-	CartoonsCollection *mongo.Collection
-	// BlogCollection       *mongo.Collection
-	Client *mongo.Client
+	SlotCollection             *mongo.Collection
+	BookingsCollection         *mongo.Collection
+	PostsCollection            *mongo.Collection
+	FilesCollection            *mongo.Collection
+	MerchCollection            *mongo.Collection
+	MenuCollection             *mongo.Collection
+	ActivitiesCollection       *mongo.Collection
+	EventsCollection           *mongo.Collection
+	ArtistEventsCollection     *mongo.Collection
+	SongsCollection            *mongo.Collection
+	SearchCollection           *mongo.Collection
+	MediaCollection            *mongo.Collection
+	ArtistsCollection          *mongo.Collection
+	CartoonsCollection         *mongo.Collection
+	ChatsCollection            *mongo.Collection
+	MessagesCollection         *mongo.Collection
+	Client                     *mongo.Client
+	CTX                        = context.Background()
 )

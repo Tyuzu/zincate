@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
@@ -54,7 +55,8 @@ var (
 	bookingsCollection         *mongo.Collection
 	slotCollection             *mongo.Collection
 	artistEventsCollection     *mongo.Collection
-	artistSongsCollection      *mongo.Collection
+	songsCollection            *mongo.Collection
+	searchCollection           *mongo.Collection
 )
 
 // Set up all routes and middleware layers
@@ -178,11 +180,13 @@ func main() {
 	db.SlotCollection = slotCollection
 	artistEventsCollection = client.Database("eventdb").Collection("artistevents")
 	db.ArtistEventsCollection = artistEventsCollection
-	artistSongsCollection = client.Database("eventdb").Collection("songs")
-	db.ArtistSongsCollection = artistSongsCollection
+	songsCollection = client.Database("eventdb").Collection("songs")
+	db.SongsCollection = songsCollection
 	// GigsCollection = Client.Database("eventdb").Collection("gigs")
 	cartoonsCollection = client.Database("eventdb").Collection("cartoons")
 	db.CartoonsCollection = cartoonsCollection
+	searchCollection = client.Database("eventdb").Collection("cartoons")
+	db.SearchCollection = searchCollection
 	db.Client = client
 
 	router := httprouter.New()
@@ -193,9 +197,19 @@ func main() {
 	router.GET("/health", Index)
 
 	server := &http.Server{
-		Addr:    ":4000",
-		Handler: handler, // Use the middleware-wrapped handler
+		Addr:              ":4000",
+		Handler:           handler, // Use the middleware-wrapped handler
+		ReadTimeout:       7 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
 	}
+
+	// Register cleanup tasks on shutdown
+	server.RegisterOnShutdown(func() {
+		log.Println("🛑 Cleaning up resources before shutdown...")
+		// Add cleanup tasks like closing DB connection
+	})
 
 	// Start server in a goroutine to handle graceful shutdown
 	go func() {

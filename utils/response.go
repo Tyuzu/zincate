@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"net/http"
+	_ "net/http/pprof"
 )
 
 func RespondWithError(w http.ResponseWriter, code int, msg string) {

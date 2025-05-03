@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof"
+	"os"
 	"runtime"
 	"time"
 )
@@ -36,7 +38,7 @@ func Emit(eventName string, content Index) error {
 }
 
 // SERP_URL - replace with the actual URL
-const SERP_URL = "http://localhost:7000/emitted" // Change to the actual endpoint
+var SERP_URL = os.Getenv("SERP_URL") // Change to the actual endpoint
 
 func Printer(jsonData []byte) error {
 	start := time.Now()

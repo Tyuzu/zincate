@@ -79,6 +79,58 @@ func GetUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	json.NewEncoder(w).Encode(userProfile)
 }
 
+// func GetUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	tokenString := r.Header.Get("Authorization")
+// 	claims, err := ValidateJWT(tokenString)
+// 	if err != nil {
+// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+// 		return
+// 	}
+
+// 	username := ps.ByName("username")
+
+// 	// Retrieve user details
+// 	var user structs.User
+// 	db.UserCollection.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
+
+// 	// Retrieve follow data
+// 	userFollow, err := GetUserFollowData(user.UserID)
+// 	if err != nil {
+// 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// exists, _ := rdx.Conn.Exists(ctx, "online:"+uid).Result()
+// 	user.Online = rdx.Exists("online:" + user.UserID)
+
+// 	// isOnline, err := rdx.RdxGet("online:" + user.UserID)
+// 	// if err != nil {
+// 	// 	isOnline = "false"
+// 	// }
+
+// 	// Build and respond with the user profile
+// 	userProfile := structs.UserProfileResponse{
+// 		UserID:         user.UserID,
+// 		Username:       user.Username,
+// 		Email:          user.Email,
+// 		Name:           user.Name,
+// 		Bio:            user.Bio,
+// 		ProfilePicture: user.ProfilePicture,
+// 		BannerPicture:  user.BannerPicture,
+// 		Followerscount: len(userFollow.Followers),
+// 		Followcount:    len(userFollow.Follows),
+// 		IsFollowing:    utils.Contains(userFollow.Followers, claims.UserID),
+// 		Online:         user.Online,
+// 	}
+
+// 	fmt.Println("userFollow.Followers ::::: ", userFollow.Followers)
+// 	fmt.Println("userFollow.Follows ::::: ", userFollow.Follows)
+// 	fmt.Println("user.UserID ::::: ", user.UserID)
+// 	fmt.Println("claims.UserID ::::: ", claims.UserID)
+
+//		w.Header().Set("Content-Type", "application/json")
+//		json.NewEncoder(w).Encode(userProfile)
+//	}
 func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
 	if tokenString == "" {
@@ -128,6 +180,89 @@ func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(profileJSON)
 }
+
+// func GetProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// 	tokenString := r.Header.Get("Authorization")
+// 	if tokenString == "" {
+// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+// 		return
+// 	}
+// 	// tokenString := r.Header.Get("Authorization")
+// 	// if tokenString == "" || len(tokenString) < 8 || tokenString[:7] != "Bearer " {
+// 	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+// 	// 	return
+// 	// }
+// 	// tokenString = tokenString[7:]
+
+// 	claims, err := ValidateJWT(tokenString)
+// 	if err != nil {
+// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+// 		return
+// 	}
+
+// 	// // Check Redis cache
+// 	// cachedProfile, err := GetCachedProfile(claims.Username)
+// 	// if err == nil && cachedProfile != "" {
+// 	// 	w.Header().Set("Content-Type", "application/json")
+// 	// 	w.Write([]byte(cachedProfile))
+// 	// 	return
+// 	// }
+
+// 	// Retrieve follow data
+// 	userFollow, err := GetUserFollowData(claims.UserID)
+// 	if err != nil {
+// 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Retrieve user data
+// 	var user structs.User
+// 	err = db.UserCollection.FindOne(context.TODO(), bson.M{"userid": claims.UserID}).Decode(&user)
+// 	if err != nil {
+// 		if errors.Is(err, mongo.ErrNoDocuments) {
+// 			http.Error(w, "User not found", http.StatusNotFound)
+// 			return
+// 		}
+// 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Remove sensitive data
+// 	user.Password = ""
+// 	user.Followerscount = len(userFollow.Followers)
+// 	user.Followcount = len(userFollow.Follows)
+
+// 	user.Online = rdx.Exists("online:" + user.UserID)
+
+// 	// --- in GetProfile, after you’ve loaded `user` ---
+// 	// onlineKey := "online:" + claims.UserID
+// 	// onlineVal, err := rdx.RdxGet(onlineKey)
+// 	// if err != nil {
+// 	// 	if err == redis.Nil {
+// 	// 		// key doesn’t exist → offline
+// 	// 		user.Online = "false"
+// 	// 	} else {
+// 	// 		log.Printf("redis GET %q error: %v", onlineKey, err)
+// 	// 		user.Online = "false"
+// 	// 	}
+// 	// } else {
+// 	// 	user.Online = onlineVal
+// 	// }
+
+// 	// Convert user to JSON
+// 	profileJSON, err := json.Marshal(user)
+// 	if err != nil {
+// 		http.Error(w, "Failed to encode profile", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Cache profile
+// 	_ = CacheProfile(claims.Username, string(profileJSON))
+
+// 	// Send response
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.Write(profileJSON)
+// }
 
 func EditProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	claims, err := ValidateJWT(r.Header.Get("Authorization"))

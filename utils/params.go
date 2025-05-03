@@ -2,6 +2,7 @@ package utils
 
 import (
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 	"strings"
 )

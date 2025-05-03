@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"naevis/db"
 	"net/http"
+	_ "net/http/pprof"
 
 	"go.mongodb.org/mongo-driver/bson"
 )

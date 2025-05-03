@@ -11,6 +11,7 @@ import (
 	rndm "math/rand"
 	"naevis/mq"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 
@@ -247,3 +248,29 @@ func ensureDir(dir string) error {
 
 // 	return imaging.Save(resizedImg, fileloc)
 // }
+
+func GenerateStringName(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyz0123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rndm.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func GenerateIntID(n int) string {
+	var letters = []rune("0123456789")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rndm.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func GenerateChatID() string {
+	// chatIDCounter++
+	// return chatIDCounter
+	return GenerateIntID(16)
+}

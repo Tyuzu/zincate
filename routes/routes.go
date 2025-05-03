@@ -8,6 +8,7 @@ import (
 	"naevis/auth"
 	"naevis/booking"
 	"naevis/cartoons"
+	"naevis/chathandlers"
 	"naevis/comments"
 	"naevis/events"
 	"naevis/feed"
@@ -26,7 +27,9 @@ import (
 	"naevis/suggestions"
 	"naevis/tickets"
 	"naevis/userdata"
+	"naevis/websock"
 	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -42,6 +45,7 @@ func AddStaticRoutes(router *httprouter.Router) {
 	router.ServeFiles("/static/eventpic/*filepath", http.Dir("static/eventpic"))
 	router.ServeFiles("/static/artistpic/*filepath", http.Dir("static/artistpic"))
 	router.ServeFiles("/static/cartoonpic/*filepath", http.Dir("static/cartoonpic"))
+	router.ServeFiles("/static/chatpic/*filepath", http.Dir("static/chatpic"))
 }
 
 func AddActivityRoutes(router *httprouter.Router) {
@@ -99,49 +103,49 @@ func AddMerchRoutes(router *httprouter.Router) {
 }
 
 func AddTicketRoutes(router *httprouter.Router) {
-	router.POST("/api/ticket/event/:eventid", middleware.Authenticate(tickets.CreateTicket))
-	router.GET("/api/ticket/event/:eventid", tickets.GetTickets)
-	router.GET("/api/ticket/event/:eventid/:ticketid", tickets.GetTicket)
-	router.PUT("/api/ticket/event/:eventid/:ticketid", middleware.Authenticate(tickets.EditTicket))
-	router.DELETE("/api/ticket/event/:eventid/:ticketid", middleware.Authenticate(tickets.DeleteTicket))
-	router.POST("/api/ticket/event/:eventid/:ticketid/buy", middleware.Authenticate(tickets.BuyTicket))
-	router.GET("/api/ticket/verify/:eventid/:ticketid", tickets.VerifyTicket)
-	router.GET("/api/ticket/print/:eventid/:ticketid", tickets.PrintTicket)
+	router.POST("/api/ticket/event/:eventid", ratelim.RateLimit(middleware.Authenticate(tickets.CreateTicket)))
+	router.GET("/api/ticket/event/:eventid", ratelim.RateLimit(tickets.GetTickets))
+	router.GET("/api/ticket/event/:eventid/:ticketid", ratelim.RateLimit(tickets.GetTicket))
+	router.PUT("/api/ticket/event/:eventid/:ticketid", ratelim.RateLimit(middleware.Authenticate(tickets.EditTicket)))
+	router.DELETE("/api/ticket/event/:eventid/:ticketid", ratelim.RateLimit(middleware.Authenticate(tickets.DeleteTicket)))
+	router.POST("/api/ticket/event/:eventid/:ticketid/buy", ratelim.RateLimit(middleware.Authenticate(tickets.BuyTicket)))
+	router.GET("/api/ticket/verify/:eventid", ratelim.RateLimit(tickets.VerifyTicket))
+	router.GET("/api/ticket/print/:eventid", ratelim.RateLimit(tickets.PrintTicket))
 
 	// router.POST("/api/ticket/confirm-purchase", middleware.Authenticate(ConfirmTicketPurchase))
-	router.POST("/api/ticket/event/:eventid/:ticketid/payment-session", middleware.Authenticate(tickets.CreateTicketPaymentSession))
-	router.GET("/api/events/event/:eventid/updates", tickets.EventUpdates)
+	router.POST("/api/ticket/event/:eventid/:ticketid/payment-session", ratelim.RateLimit(middleware.Authenticate(tickets.CreateTicketPaymentSession)))
+	router.GET("/api/events/event/:eventid/updates", ratelim.RateLimit(tickets.EventUpdates))
 	// router.POST("/api/seats/event/:eventid/:ticketid", ratelim.RateLimit(middleware.Authenticate(bookSeats)))
-	router.POST("/api/ticket/event/:eventid/:ticketid/confirm-purchase", middleware.Authenticate(tickets.ConfirmTicketPurchase))
+	router.POST("/api/ticket/event/:eventid/:ticketid/confirm-purchase", ratelim.RateLimit(middleware.Authenticate(tickets.ConfirmTicketPurchase)))
 
-	router.GET("/api/seats/:eventid/available-seats", tickets.GetAvailableSeats)
-	router.POST("/api/seats/:eventid/lock-seats", tickets.LockSeats)
-	router.POST("/api/seats/:eventid/unlock-seats", tickets.UnlockSeats)
-	router.POST("/api/seats/:eventid/ticket/:ticketid/confirm-purchase", tickets.ConfirmSeatPurchase)
-	router.GET("/api/ticket/event/:eventid/:ticketid/seats", tickets.GetTicketSeats)
+	router.GET("/api/seats/:eventid/available-seats", ratelim.RateLimit(tickets.GetAvailableSeats))
+	router.POST("/api/seats/:eventid/lock-seats", ratelim.RateLimit(tickets.LockSeats))
+	router.POST("/api/seats/:eventid/unlock-seats", ratelim.RateLimit(tickets.UnlockSeats))
+	router.POST("/api/seats/:eventid/ticket/:ticketid/confirm-purchase", ratelim.RateLimit(tickets.ConfirmSeatPurchase))
+	router.GET("/api/ticket/event/:eventid/:ticketid/seats", ratelim.RateLimit(tickets.GetTicketSeats))
 }
 
 func AddSuggestionsRoutes(router *httprouter.Router) {
 	router.GET("/api/suggestions/places/nearby", ratelim.RateLimit(suggestions.GetNearbyPlaces))
 	router.GET("/api/suggestions/places", ratelim.RateLimit(suggestions.SuggestionsHandler))
-	router.GET("/api/suggestions/follow", middleware.Authenticate(suggestions.SuggestFollowers))
+	router.GET("/api/suggestions/follow", ratelim.RateLimit(middleware.Authenticate(suggestions.SuggestFollowers)))
 }
 
 func AddReviewsRoutes(router *httprouter.Router) {
 	router.GET("/api/reviews/:entityType/:entityId", ratelim.RateLimit(middleware.Authenticate(reviews.GetReviews)))
-	router.GET("/api/reviews/:entityType/:entityId/:reviewId", middleware.Authenticate(reviews.GetReview))
-	router.POST("/api/reviews/:entityType/:entityId", middleware.Authenticate(reviews.AddReview))
-	router.PUT("/api/reviews/:entityType/:entityId/:reviewId", middleware.Authenticate(reviews.EditReview))
-	router.DELETE("/api/reviews/:entityType/:entityId/:reviewId", middleware.Authenticate(reviews.DeleteReview))
+	router.GET("/api/reviews/:entityType/:entityId/:reviewId", ratelim.RateLimit(middleware.Authenticate(reviews.GetReview)))
+	router.POST("/api/reviews/:entityType/:entityId", ratelim.RateLimit(middleware.Authenticate(reviews.AddReview)))
+	router.PUT("/api/reviews/:entityType/:entityId/:reviewId", ratelim.RateLimit(middleware.Authenticate(reviews.EditReview)))
+	router.DELETE("/api/reviews/:entityType/:entityId/:reviewId", ratelim.RateLimit(middleware.Authenticate(reviews.DeleteReview)))
 }
 
 func AddMediaRoutes(router *httprouter.Router) {
 	// Set up routes with middlewares
-	router.POST("/api/media/:entitytype/:entityid", middleware.Authenticate(media.AddMedia))
-	router.GET("/api/media/:entitytype/:entityid/:id", media.GetMedia)
-	router.PUT("/api/media/:entitytype/:entityid/:id", middleware.Authenticate(media.EditMedia))
+	router.POST("/api/media/:entitytype/:entityid", ratelim.RateLimit(middleware.Authenticate(media.AddMedia)))
+	router.GET("/api/media/:entitytype/:entityid/:id", ratelim.RateLimit(media.GetMedia))
+	router.PUT("/api/media/:entitytype/:entityid/:id", ratelim.RateLimit(middleware.Authenticate(media.EditMedia)))
 	router.GET("/api/media/:entitytype/:entityid", ratelim.RateLimit(media.GetMedias))
-	router.DELETE("/api/media/:entitytype/:entityid/:id", middleware.Authenticate(media.DeleteMedia))
+	router.DELETE("/api/media/:entitytype/:entityid/:id", ratelim.RateLimit(middleware.Authenticate(media.DeleteMedia)))
 }
 
 func AddPlaceRoutes(router *httprouter.Router) {
@@ -213,6 +217,20 @@ func AddCartoonRoutes(router *httprouter.Router) {
 
 }
 
+func AddChatRoutes(router *httprouter.Router) {
+
+	// Existing endpoints.
+	router.GET("/api/chat/contacts", middleware.Authenticate(chathandlers.ContactsHandler))
+	router.GET("/api/chat/chats", middleware.Authenticate(chathandlers.ChatsHandler))
+	router.GET("/api/chat/messages", middleware.Authenticate(chathandlers.MessagesHandler))
+	router.POST("/api/chat/messages/send", middleware.Authenticate(chathandlers.SendMessageHandler))
+	router.PUT("/api/chat/messages/edit", middleware.Authenticate(chathandlers.EditMessageHandler))
+	router.DELETE("/api/chat/messages/delete", middleware.Authenticate(chathandlers.DeleteMessageHandler))
+	router.DELETE("/api/chat/chats/:chatid", middleware.Authenticate(chathandlers.DeleteChatHandler))
+	router.GET("/ws", websock.WsHandler)
+	router.POST("/api/chat/chats/create", chathandlers.CreateChatHandler)
+}
+
 func AddMapRoutes(router *httprouter.Router) {
 	router.GET("/api/maps/config/:entity", maps.GetMapConfig)
 	router.GET("/api/maps/markers/:entity", maps.GetMapMarkers)
@@ -257,7 +275,9 @@ func AddHomeFeedRoutes(router *httprouter.Router) {
 
 }
 func AddSearchRoutes(router *httprouter.Router) {
+	router.GET("/api/ac", search.Autocompleter)
 	router.GET("/api/search/:entityType", ratelim.RateLimit(search.SearchHandler))
+	router.POST("/emitted", search.EventHandler)
 }
 
 func AddMiscRoutes(router *httprouter.Router) {

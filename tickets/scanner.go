@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	_ "net/http/pprof"
 	"strconv"
 	"strings"
 	"time"

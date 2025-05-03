@@ -220,8 +220,19 @@ func GetEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 		bson.D{{Key: "$lookup", Value: bson.D{
 			{Key: "from", Value: "merch"},
-			{Key: "localField", Value: "eventid"},
-			{Key: "foreignField", Value: "eventid"},
+			{Key: "let", Value: bson.D{
+				{Key: "event_id", Value: "$eventid"},
+			}},
+			{Key: "pipeline", Value: mongo.Pipeline{
+				bson.D{{Key: "$match", Value: bson.D{
+					{Key: "$expr", Value: bson.D{
+						{Key: "$and", Value: bson.A{
+							bson.D{{Key: "$eq", Value: bson.A{"$entity_id", "$$event_id"}}},
+							bson.D{{Key: "$eq", Value: bson.A{"$entity_type", "event"}}},
+						}},
+					}},
+				}}},
+			}},
 			{Key: "as", Value: "merch"},
 		}}},
 	}

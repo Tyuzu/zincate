@@ -11,6 +11,7 @@ import (
 	"naevis/userdata"
 	"naevis/utils"
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 	"time"
 
@@ -541,7 +542,6 @@ func GenerateSeatLabels(start, end int, rowPrefix string) []string {
 
 func VerifyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
-	ticketID := ps.ByName("ticketid")
 	uniqueCode := r.URL.Query().Get("uniqueCode") // Retrieve the unique code from query parameters
 
 	// Check if the unique code is provided
@@ -554,7 +554,6 @@ func VerifyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	var purchasedTicket structs.PurchasedTicket
 	err := db.PurchasedTicketsCollection.FindOne(context.TODO(), bson.M{
 		"eventid":    eventID,
-		"ticketid":   ticketID,
 		"uniquecode": uniqueCode, // Match the unique code
 	}).Decode(&purchasedTicket)
 	if err != nil {

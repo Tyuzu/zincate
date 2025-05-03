@@ -88,7 +88,7 @@ func PostNewSong(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	filter := bson.M{"artistid": artistID}
 	update := bson.M{"$push": bson.M{"songs": newSong}}
 
-	_, err = db.ArtistSongsCollection.UpdateOne(context.TODO(), filter, update)
+	_, err = db.SongsCollection.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to add song to artist")
 		return
@@ -100,8 +100,8 @@ func PostNewSong(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 // DeleteSong removes a song by its songid.
 func DeleteSong(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	artistID := ps.ByName("id")
-	// songID := r.URL.Query().Get("songId")
 	songID := ps.ByName("songId")
+	// songID := r.URL.Query().Get("songId")
 
 	if songID == "" {
 		utils.RespondWithError(w, http.StatusBadRequest, "songId is required")
@@ -111,7 +111,7 @@ func DeleteSong(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	filter := bson.M{"artistid": artistID}
 	update := bson.M{"$pull": bson.M{"songs": bson.M{"songid": songID}}}
 
-	_, err := db.ArtistSongsCollection.UpdateOne(context.TODO(), filter, update)
+	_, err := db.SongsCollection.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to delete song")
 		return
@@ -170,7 +170,7 @@ func EditSong(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	filter := bson.M{"artistid": artistID, "songs.songid": songID}
 	update := bson.M{"$set": updateFields}
 
-	res, err := db.ArtistSongsCollection.UpdateOne(context.TODO(), filter, update)
+	res, err := db.SongsCollection.UpdateOne(context.TODO(), filter, update)
 	if err != nil || res.MatchedCount == 0 {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update song")
 		return
@@ -189,7 +189,7 @@ func GetArtistsSongs(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 	}
 
 	// ignore errors; result.Songs will be nil if no document found
-	_ = db.ArtistSongsCollection.
+	_ = db.SongsCollection.
 		FindOne(context.TODO(), bson.M{"artistid": artistID}).
 		Decode(&result)
 
